@@ -22,23 +22,31 @@
     -webkit-tap-highlight-color: transparent; user-select: none;
   }
   main { width: 100%; max-width: 420px; padding: 16px; display: flex; flex-direction: column; gap: 18px; }
-  h1 { text-align: center; font-size: 30px; font-weight: 900; color: #a14f68; margin-top: 8px; }
-  .sub { text-align: center; font-size: 18px; font-weight: 600; color: #bc8390; margin-top: -10px; }
+  h1 { text-align: center; font-size: 40px; font-weight: 900; line-height: 1.1; margin-top: 14px; color: #a14f68;
+       background: linear-gradient(135deg, #dc896f, #a14f68); -webkit-background-clip: text; background-clip: text;
+       -webkit-text-fill-color: transparent; }
+  .sub { text-align: center; font-size: 20px; font-weight: 800; color: #bc8390; margin-top: -10px; }
   .play {
     width: 170px; height: 170px; border-radius: 50%; margin: 18px auto 0; border: 0; cursor: pointer;
-    background: #a14f68; color: #fff; font: inherit; font-size: 26px; font-weight: 900;
-    box-shadow: 0 6px 0 #7d3a50, 0 14px 30px rgba(161, 79, 104, .35);
+    background: linear-gradient(135deg, #e6ab96 0%, #dc896f 35%, #a14f68 100%);
+    color: #fff; font: inherit; font-size: 26px; font-weight: 900;
+    box-shadow: 0 12px 32px rgba(161, 79, 104, .28);
+    transition: transform .1s;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   }
-  .play:active { transform: translateY(4px); box-shadow: 0 2px 0 #7d3a50; }
+  .play:active { transform: scale(.96); }
   .play .tri { font-size: 44px; line-height: 1; }
   .lvlcap { text-align: center; font-size: 16px; font-weight: 600; color: #bc8390; margin-top: 10px; }
-  #about { text-align: center; font-size: 16px; line-height: 1.6; color: #6b4a52; padding: 8px 12px; }
-  #about b { color: #3d2329; font-size: 17px; }
+  #about { background: #fff; border-radius: 20px; padding: 18px 20px; margin-top: 18px;
+           box-shadow: 0 6px 20px rgba(161, 79, 104, .08); color: #1f1316; }
+  #about .label { text-align: center; margin-bottom: 10px; }
+  #about .rowx { display: flex; gap: 12px; align-items: center; font-size: 16px; line-height: 1.35; padding: 6px 0; }
+  #about .ico { font-size: 20px; width: 26px; text-align: center; flex: none; }
   .label { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #bc8390; margin-bottom: 4px; }
   .top { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 18px; }
-  #quit { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 20px; font-weight: 800;
-          width: 40px; height: 40px; border-radius: 20px; cursor: pointer; }
+  #quit { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 22px; font-weight: 800;
+          width: 48px; height: 48px; border-radius: 50%; cursor: pointer; margin: 10px auto 0;
+          box-shadow: 0 4px 14px rgba(161, 79, 104, .15); }
 
   #bar { position: relative; height: 28px; background: #ecd5d9; border-radius: 14px; overflow: hidden; }
   #fill { height: 100%; width: 100%; background: #dc896f; }
@@ -46,7 +54,7 @@
           font-weight: 800; color: #3d2329; }
 
   #help { text-align: center; background: #fff; border-radius: 16px; padding: 12px 14px; }
-  #desc { font-size: 18px; line-height: 1.4; }
+  #desc { font-size: 18px; line-height: 1.4; color: #1f1316; }
   #hint { text-align: center; font-size: 22px; font-weight: 700; min-height: 30px; }
 
   /* tile size fits the whole word on one line (--n = letters, at least 9), even on small phones */
@@ -76,27 +84,29 @@
 </head>
 <body>
 <main>
-  <h1>💖 Dancing Hearts</h1>
+  <h1>Dancing Hearts</h1>
 
   <div id="menu" style="display:flex; flex-direction:column; gap:12px">
-    <div class="sub">Zbieraj body a vyhraj tričko každý mesiac! 👕</div>
+    <div class="sub">Zbieraj body a vyhraj! 💖</div>
     <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
     <div id="styles"></div>
     <div id="about">
-      <b>Poskladaj z písmen názov tanečného kroku!</b><br>
-      Pomôže ti krátka nápoveda.<br>
-      ⭐ Dlhšie slovo a rýchlejšia odpoveď = viac bodov<br>
-      🔓 4 z 5 správne odomknú ďalšiu úroveň
+      <div class="label">Ako hrať</div>
+      <div class="rowx"><span class="ico">🧩</span><span>Poskladaj z písmen názov tanečného kroku</span></div>
+      <div class="rowx"><span class="ico">💡</span><span>Pomôže ti krátka nápoveda</span></div>
+      <div class="rowx"><span class="ico">⭐</span><span>Dlhšie slovo a rýchla odpoveď = viac bodov</span></div>
+      <div class="rowx"><span class="ico">🔓</span><span>4 z 5 správne = ďalšia úroveň</span></div>
     </div>
   </div>
 
   <div id="game" style="display:none; flex-direction:column; gap:16px">
-    <div class="top"><button id="quit" aria-label="Koniec hry">✕</button><span id="round">1 / 5</span><span id="lvl"></span><span id="score">0 b.</span></div>
+    <div class="top"><span id="round">1 / 5</span><span id="lvl"></span><span id="score">0 b.</span></div>
     <div id="bar"><div id="fill"></div><div id="secs"></div></div>
+    <div id="help"><div class="label">💡 Nápoveda</div><div id="desc"></div></div>
     <div id="hint">Poskladaj slovo!</div>
     <div id="answer" class="row"></div>
     <div id="pool" class="row"></div>
-    <div id="help"><div class="label">💡 Nápoveda</div><div id="desc"></div></div>
+    <button id="quit" aria-label="Koniec hry">✕</button>
   </div>
 
   <div id="end">
