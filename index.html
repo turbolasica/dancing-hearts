@@ -37,11 +37,10 @@
   .play:active { transform: scale(.96); }
   .play .tri { font-size: 44px; line-height: 1; }
   .lvlcap { text-align: center; font-size: 16px; font-weight: 600; color: #bc8390; margin-top: 10px; }
-  #about { background: #fff; border-radius: 20px; padding: 18px 20px; margin-top: 18px;
-           box-shadow: 0 6px 20px rgba(161, 79, 104, .08); color: #1f1316; }
-  #about .label { text-align: center; margin-bottom: 10px; }
-  #about .rowx { display: flex; gap: 12px; align-items: center; font-size: 16px; line-height: 1.35; padding: 6px 0; }
-  #about .ico { font-size: 20px; width: 26px; text-align: center; flex: none; }
+  #about { max-width: 270px; margin: 26px auto 0; text-align: center;
+           font-size: 14px; line-height: 1.6; color: #6b5a5e; }
+  /* home screen: title sits lower, closer to the middle */
+  main.home h1 { margin-top: 12vh; }
   .label { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #bc8390; margin-bottom: 4px; }
   .top { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 18px; }
   #quit { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 22px; font-weight: 800;
@@ -83,7 +82,7 @@
 </style>
 </head>
 <body>
-<main>
+<main class="home">
   <h1>Dancing Hearts</h1>
 
   <div id="menu" style="display:flex; flex-direction:column; gap:12px">
@@ -91,11 +90,9 @@
     <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
     <div id="styles"></div>
     <div id="about">
-      <div class="label">Ako hrať</div>
-      <div class="rowx"><span class="ico">🧩</span><span>Poskladaj z písmen názov tanečného kroku</span></div>
-      <div class="rowx"><span class="ico">💡</span><span>Pomôže ti krátka nápoveda</span></div>
-      <div class="rowx"><span class="ico">⭐</span><span>Dlhšie slovo a rýchla odpoveď = viac bodov</span></div>
-      <div class="rowx"><span class="ico">🔓</span><span>4 z 5 správne = ďalšia úroveň</span></div>
+      Poskladaj z písmen názov tanečného kroku. Pomôže ti krátka nápoveda.
+      Dlhšie slovo a rýchla odpoveď znamenajú viac bodov.
+      Za 4 z 5 správnych odpovedí postúpiš na ďalšiu úroveň.
     </div>
   </div>
 
@@ -191,6 +188,7 @@ function currentLevel(s) {           // highest level unlocked so far (level 1 a
 
 function showMenu() {
   $("game").style.display = "none"; $("end").style.display = "none"; $("menu").style.display = "flex";
+  document.querySelector("main").classList.add("home");
   $("menuHint").textContent = "";
   $("styles").innerHTML = "";
   [...new Set(WORDS.map(w => w.style))].forEach(s => {
@@ -224,6 +222,7 @@ function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] 
 function start() {
   round = 0; score = 0; correct = 0; used = [];
   $("menu").style.display = "none"; $("end").style.display = "none"; $("game").style.display = "flex";
+  document.querySelector("main").classList.remove("home");
   $("lvl").textContent = "Úroveň " + (levelsOf(style).indexOf(level) + 1);
   nextRound();
 }
