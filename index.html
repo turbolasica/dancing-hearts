@@ -123,9 +123,23 @@ async function load() {
     if (!WORDS.length) throw new Error("no words");
     showMenu();
   } catch (e) {
-    $("menuHint").textContent = "Nepodarilo sa načítať slová. Skús to znova.";
+    $("menuHint").textContent = "Nepodarilo sa načítať slová.";
+    $("styles").innerHTML = "";
+    const b = document.createElement("button");
+    b.className = "main";
+    b.textContent = "Skúsiť znova";
+    b.onclick = () => location.reload();
+    $("styles").appendChild(b);
   }
 }
+
+// When the game comes back after 30+ minutes in the background, reload it,
+// so the phone always gets the newest version and the newest words.
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) hiddenAt = Date.now();
+  else if (hiddenAt && Date.now() - hiddenAt > 30 * 60 * 1000) location.reload();
+});
 
 // ---- Styles and levels (progress is kept only on this phone) ----
 const KEY = "dh-progress";
