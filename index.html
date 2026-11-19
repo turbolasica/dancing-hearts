@@ -121,9 +121,10 @@ async function load() {
     // columns: word, description, style, level
     WORDS = parseCSV(text).slice(1)                       // skip the header row
       .map(r => ({ word: (r[0] || "").trim(), desc: (r[1] || "").trim(),
-                   style: (r[2] || "").trim(), level: parseInt(r[3]) || 1 }))
-      .filter(w => w.style
-                && !w.word.includes(" ")                  // one-word terms only, for now
+                   // styles are switched off for now: all words play together, only levels count
+                   // (to switch styles back on: use (r[2] || "").trim() here)
+                   style: "▶ Hrať", level: parseInt(r[3]) || 1 }))
+      .filter(w => !w.word.includes(" ")                  // one-word terms only, for now
                 && new Set(w.word.toUpperCase()).size > 1);  // needs letters to mix up
     if (!WORDS.length) throw new Error("no words");
     showMenu();
@@ -159,7 +160,7 @@ function currentLevel(s) {           // highest level unlocked so far (level 1 a
 
 function showMenu() {
   $("game").style.display = "none"; $("end").style.display = "none"; $("menu").style.display = "flex";
-  $("menuHint").textContent = "Vyber si štýl:";
+  $("menuHint").textContent = "";
   $("styles").innerHTML = "";
   [...new Set(WORDS.map(w => w.style))].forEach(s => {
     const ls = levelsOf(s), lv = currentLevel(s);
@@ -188,7 +189,7 @@ function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] 
 function start() {
   round = 0; score = 0; correct = 0; used = [];
   $("menu").style.display = "none"; $("end").style.display = "none"; $("game").style.display = "flex";
-  $("lvl").textContent = style + " · úroveň " + (levelsOf(style).indexOf(level) + 1);
+  $("lvl").textContent = "Úroveň " + (levelsOf(style).indexOf(level) + 1);
   nextRound();
 }
 
