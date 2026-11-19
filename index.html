@@ -59,8 +59,13 @@
 <main>
   <h1>💖 Dancing Hearts</h1>
 
-  <div id="game" style="display:flex; flex-direction:column; gap:16px">
-    <div class="top"><span id="round">1 / 5</span><span id="score">0 b.</span></div>
+  <div id="menu" style="display:flex; flex-direction:column; gap:12px">
+    <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
+    <div id="styles" style="display:flex; flex-direction:column; gap:12px"></div>
+  </div>
+
+  <div id="game" style="display:none; flex-direction:column; gap:16px">
+    <div class="top"><span id="round">1 / 5</span><span id="lvl"></span><span id="score">0 b.</span></div>
     <div id="bar"><div id="fill"></div><div id="secs"></div></div>
     <div id="desc"></div>
     <div id="hint">Poskladaj slovo!</div>
@@ -71,13 +76,16 @@
   <div id="end">
     <div>Koniec! Tvoje body:</div>
     <div class="big" id="final">0</div>
+    <div id="result" style="font-size:20px; font-weight:700"></div>
+    <div id="levelMsg" style="font-size:20px"></div>
     <button class="main" id="again">Hrať znova</button>
+    <button class="main" id="back" style="background:#fff; color:#a14f68">Späť</button>
   </div>
 </main>
 
 <script>
 // ---- Content: comes from the "Dancing Hearts" Google Sheet ----
-const SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRrIUPEITb7Hno72SM7LWPvB8VeFSxTyiYTAoShPNA5xXkDcJpMy3L3emwhZsKWO5MfMuvhsoZoqKpe/pub?gid=1938244848&single=true&output=csv";
+const SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRrIUPEITb7Hno72SM7LWPvB8VeFSxTyiYTAoShPNA5xXkDcJpMy3L3emwhZsKWO5MfMuvhsoZoqKpe/pub?gid=1773792772&single=true&output=csv";
 let WORDS = [];
 const SECONDS = 20;
 let ROUNDS = 5;
@@ -103,30 +111,65 @@ function parseCSV(text) {
 }
 
 async function load() {
-  $("hint").textContent = "Načítavam…";
   try {
     const text = await (await fetch(SHEET)).text();
+    // columns: word, description, style, level
     WORDS = parseCSV(text).slice(1)                       // skip the header row
-      .map(r => ({ word: (r[0] || "").trim(), desc: (r[1] || "").trim(), group: (r[2] || "").trim() }))
-      .filter(w => !w.word.includes(" ")                  // one-word terms only, for now
+      .map(r => ({ word: (r[0] || "").trim(), desc: (r[1] || "").trim(),
+                   style: (r[2] || "").trim(), level: parseInt(r[3]) || 1 }))
+      .filter(w => w.style
+                && !w.word.includes(" ")                  // one-word terms only, for now
                 && new Set(w.word.toUpperCase()).size > 1);  // needs letters to mix up
     if (!WORDS.length) throw new Error("no words");
-    ROUNDS = Math.min(5, WORDS.length);
-    start();
+    showMenu();
   } catch (e) {
-    $("hint").textContent = "Nepodarilo sa načítať slová. Skús to znova.";
+    $("menuHint").textContent = "Nepodarilo sa načítať slová. Skús to znova.";
   }
+}
+
+// ---- Styles and levels (progress is kept only on this phone) ----
+const KEY = "dh-progress";
+function getProgress() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
+function saveProgress(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
+function levelsOf(s) { return [...new Set(WORDS.filter(w => w.style === s).map(w => w.level))].sort((a, b) => a - b); }
+function currentLevel(s) {           // highest level unlocked so far (level 1 at the start)
+  const ls = levelsOf(s), saved = getProgress()[s] || 0;
+  const open = ls.filter(l => l <= saved);
+  return open.length ? open[open.length - 1] : ls[0];
+}
+
+function showMenu() {
+  $("game").style.display = "none"; $("end").style.display = "none"; $("menu").style.display = "flex";
+  $("menuHint").textContent = "Vyber si štýl:";
+  $("styles").innerHTML = "";
+  [...new Set(WORDS.map(w => w.style))].forEach(s => {
+    const ls = levelsOf(s), lv = currentLevel(s);
+    const b = document.createElement("button");
+    b.className = "main";
+    b.innerHTML = s + "<br><small style='font-weight:400'>úroveň " + (ls.indexOf(lv) + 1) + " z " + ls.length + "</small>";
+    b.onclick = () => play(s);
+    $("styles").appendChild(b);
+  });
+}
+
+function play(s) {
+  style = s;
+  level = currentLevel(s);
+  POOL = WORDS.filter(w => w.style === style && w.level === level);
+  ROUNDS = Math.min(5, POOL.length);
+  start();
 }
 
 // ---- Game ----
 const $ = id => document.getElementById(id);
-let round, score, used, item, word, picked, mistakes, busy, clock, t0;
+let round, score, correct, used, item, word, picked, mistakes, busy, clock, t0, style, level, POOL;
 
 function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(p => p[1]); }
 
 function start() {
-  round = 0; score = 0; used = [];
-  $("end").style.display = "none"; $("game").style.display = "flex";
+  round = 0; score = 0; correct = 0; used = [];
+  $("menu").style.display = "none"; $("end").style.display = "none"; $("game").style.display = "flex";
+  $("lvl").textContent = style + " · úroveň " + (levelsOf(style).indexOf(level) + 1);
   nextRound();
 }
 
@@ -136,7 +179,7 @@ function nextRound() {
   $("score").textContent = score + " b.";
   $("hint").textContent = "Poskladaj slovo!";
   $("answer").className = "row";
-  const left = WORDS.filter(w => !used.includes(w));
+  const left = POOL.filter(w => !used.includes(w));
   item = left[Math.floor(Math.random() * left.length)];
   used.push(item);
   word = item.word.toUpperCase();
@@ -214,6 +257,7 @@ function check() {
     let points = 100 + Math.round(timeLeft() * 100);
     if (mistakes > 0) points = Math.round(points / 2);
     score += points;
+    correct++;
     $("answer").className = "row ok";
     $("hint").textContent = "Správne! +" + points;
     $("score").textContent = score + " b.";
@@ -246,9 +290,27 @@ function finish() {
   $("game").style.display = "none";
   $("end").style.display = "flex";
   $("final").textContent = score;
+  $("result").textContent = correct + " z " + ROUNDS + " správne";
+
+  // pass = all but one right (4 of 5) → unlock the next level of this style
+  const need = Math.max(1, ROUNDS - 1);
+  const ls = levelsOf(style), nextLevel = ls.find(l => l > level);
+  $("again").textContent = "Hrať znova";
+  if (correct < need) {
+    $("levelMsg").textContent = "Na ďalšiu úroveň treba aspoň " + need + " správne. Skús znova!";
+  } else if (nextLevel) {
+    const p = getProgress();
+    p[style] = Math.max(p[style] || 0, nextLevel);
+    saveProgress(p);
+    $("levelMsg").textContent = "🔓 Odomkla sa úroveň " + (ls.indexOf(nextLevel) + 1) + "!";
+    $("again").textContent = "Hrať úroveň " + (ls.indexOf(nextLevel) + 1);
+  } else {
+    $("levelMsg").textContent = "🏆 Všetky úrovne hotové!";
+  }
 }
 
-$("again").onclick = start;
+$("again").onclick = () => play(style);
+$("back").onclick = showMenu;
 load();
 </script>
 </body>
