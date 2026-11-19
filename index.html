@@ -9,17 +9,33 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-title" content="Dancing Hearts">
 <meta name="theme-color" content="#a14f68">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap&subset=latin-ext" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: 'Nunito', system-ui, -apple-system, sans-serif;
     background: #fbf3f4; color: #3d2329;
     display: flex; justify-content: center;
     min-height: 100vh; min-height: 100dvh;
     -webkit-tap-highlight-color: transparent; user-select: none;
   }
   main { width: 100%; max-width: 420px; padding: 16px; display: flex; flex-direction: column; gap: 18px; }
-  h1 { text-align: center; font-size: 26px; color: #a14f68; }
+  h1 { text-align: center; font-size: 30px; font-weight: 900; color: #a14f68; margin-top: 8px; }
+  .sub { text-align: center; font-size: 18px; font-weight: 600; color: #bc8390; margin-top: -10px; }
+  .play {
+    width: 170px; height: 170px; border-radius: 50%; margin: 18px auto 0; border: 0; cursor: pointer;
+    background: #a14f68; color: #fff; font: inherit; font-size: 26px; font-weight: 900;
+    box-shadow: 0 6px 0 #7d3a50, 0 14px 30px rgba(161, 79, 104, .35);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  }
+  .play:active { transform: translateY(4px); box-shadow: 0 2px 0 #7d3a50; }
+  .play .tri { font-size: 44px; line-height: 1; }
+  .lvlcap { text-align: center; font-size: 16px; font-weight: 600; color: #bc8390; margin-top: 10px; }
+  #about { text-align: center; font-size: 16px; line-height: 1.6; color: #6b4a52; padding: 8px 12px; }
+  #about b { color: #3d2329; font-size: 17px; }
+  .label { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #bc8390; margin-bottom: 4px; }
   .top { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 18px; }
   #quit { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 20px; font-weight: 800;
           width: 40px; height: 40px; border-radius: 20px; cursor: pointer; }
@@ -29,7 +45,8 @@
   #secs { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
           font-weight: 800; color: #3d2329; }
 
-  #desc { text-align: center; font-size: 18px; line-height: 1.4; background: #fff; border-radius: 16px; padding: 14px; }
+  #help { text-align: center; background: #fff; border-radius: 16px; padding: 12px 14px; }
+  #desc { font-size: 18px; line-height: 1.4; }
   #hint { text-align: center; font-size: 22px; font-weight: 700; min-height: 30px; }
 
   /* tile size fits the whole word on one line (--n = letters, at least 9), even on small phones */
@@ -62,22 +79,24 @@
   <h1>💖 Dancing Hearts</h1>
 
   <div id="menu" style="display:flex; flex-direction:column; gap:12px">
-    <div id="about" style="background:#fff; border-radius:16px; padding:14px 16px; font-size:16px; line-height:1.5">
-      <b>Poskladaj z písmen názov tanečného kroku!</b> Pomôže ti krátky popis.<br>
-      ⭐ Dlhšie slovo a rýchlejšia odpoveď = viac bodov.<br>
-      🔓 4 z 5 správne odomknú ďalšiu úroveň s ťažšími slovami.
-    </div>
+    <div class="sub">Zbieraj body a vyhraj tričko každý mesiac! 👕</div>
     <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
-    <div id="styles" style="display:flex; flex-direction:column; gap:12px"></div>
+    <div id="styles"></div>
+    <div id="about">
+      <b>Poskladaj z písmen názov tanečného kroku!</b><br>
+      Pomôže ti krátka nápoveda.<br>
+      ⭐ Dlhšie slovo a rýchlejšia odpoveď = viac bodov<br>
+      🔓 4 z 5 správne odomknú ďalšiu úroveň
+    </div>
   </div>
 
   <div id="game" style="display:none; flex-direction:column; gap:16px">
     <div class="top"><button id="quit" aria-label="Koniec hry">✕</button><span id="round">1 / 5</span><span id="lvl"></span><span id="score">0 b.</span></div>
     <div id="bar"><div id="fill"></div><div id="secs"></div></div>
-    <div id="desc"></div>
     <div id="hint">Poskladaj slovo!</div>
     <div id="answer" class="row"></div>
     <div id="pool" class="row"></div>
+    <div id="help"><div class="label">💡 Nápoveda</div><div id="desc"></div></div>
   </div>
 
   <div id="end">
@@ -167,10 +186,14 @@ function showMenu() {
   [...new Set(WORDS.map(w => w.style))].forEach(s => {
     const ls = levelsOf(s), lv = currentLevel(s);
     const b = document.createElement("button");
-    b.className = "main";
-    b.innerHTML = s + "<br><small style='font-weight:400'>úroveň " + (ls.indexOf(lv) + 1) + " z " + ls.length + "</small>";
+    b.className = "play";
+    b.innerHTML = "<span class='tri'>▶</span><span>Hrať</span>";
     b.onclick = () => play(s);
+    const cap = document.createElement("div");
+    cap.className = "lvlcap";
+    cap.textContent = "úroveň " + (ls.indexOf(lv) + 1) + " z " + ls.length;
     $("styles").appendChild(b);
+    $("styles").appendChild(cap);
   });
 }
 
