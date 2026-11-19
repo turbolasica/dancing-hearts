@@ -30,8 +30,8 @@
   #desc { text-align: center; font-size: 18px; line-height: 1.4; background: #fff; border-radius: 16px; padding: 14px; }
   #hint { text-align: center; font-size: 22px; font-weight: 700; min-height: 30px; }
 
-  /* tile size fits 9 letters on one line, even on small phones */
-  :root { --tile: min(48px, calc((min(100vw, 420px) - 92px) / 9)); }
+  /* tile size fits the whole word on one line (--n = letters, at least 9), even on small phones */
+  :root { --n: 9; --tile: min(48px, calc((min(100vw, 420px) - 60px - 4px * var(--n)) / var(--n))); }
   .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; min-height: calc(var(--tile) * 1.2 + 20px); }
   #answer { background: #fff; border-radius: 16px; padding: 10px; border: 3px dashed #ecd5d9; }
   #answer.ok { border-color: #4c9a5f; background: #eef7f0; }
@@ -197,6 +197,7 @@ function nextRound() {
   item = left[Math.floor(Math.random() * left.length)];
   used.push(item);
   word = item.word.toUpperCase();
+  document.documentElement.style.setProperty("--n", Math.max(9, word.length));
   $("desc").textContent = item.desc;
   picked = []; mistakes = 0; busy = false;
 
