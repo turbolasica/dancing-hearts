@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Dancing Hearts – Písmenká</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #fbf3f4; color: #3d2329;
+    display: flex; justify-content: center;
+    min-height: 100vh; min-height: 100dvh;
+    -webkit-tap-highlight-color: transparent; user-select: none;
+  }
+  main { width: 100%; max-width: 420px; padding: 16px; display: flex; flex-direction: column; gap: 18px; }
+  h1 { text-align: center; font-size: 26px; color: #a14f68; }
+  .top { display: flex; justify-content: space-between; font-weight: 700; font-size: 18px; }
+
+  #bar { position: relative; height: 28px; background: #ecd5d9; border-radius: 14px; overflow: hidden; }
+  #fill { height: 100%; width: 100%; background: #dc896f; }
+  #secs { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+          font-weight: 800; color: #3d2329; }
+
+  #desc { text-align: center; font-size: 18px; line-height: 1.4; background: #fff; border-radius: 16px; padding: 14px; }
+  #hint { text-align: center; font-size: 22px; font-weight: 700; min-height: 30px; }
+
+  /* tile size fits 9 letters on one line, even on small phones */
+  :root { --tile: min(48px, calc((min(100vw, 420px) - 92px) / 9)); }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; min-height: calc(var(--tile) * 1.2 + 20px); }
+  #answer { background: #fff; border-radius: 16px; padding: 10px; border: 3px dashed #ecd5d9; }
+  #answer.ok { border-color: #4c9a5f; background: #eef7f0; }
+  #answer.bad { border-color: #b9473f; background: #fbeeee; }
+  .slot, .letter {
+    width: var(--tile); height: calc(var(--tile) * 1.2); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--tile) * 0.6); font-weight: 800;
+  }
+  .slot { background: #f3e3e6; }
+  .letter {
+    border: 0; font-family: inherit; background: #a14f68; color: #fff;
+    box-shadow: 0 3px 0 #7d3a50; cursor: pointer;
+  }
+  .letter.used { visibility: hidden; }
+  button.main {
+    font: inherit; font-size: 20px; font-weight: 700; padding: 18px;
+    border: 0; border-radius: 16px; background: #a14f68; color: #fff; cursor: pointer;
+  }
+  #end { text-align: center; display: none; flex-direction: column; gap: 16px; padding-top: 40px; }
+  #end .big { font-size: 64px; font-weight: 800; color: #a14f68; }
+</style>
+</head>
+<body>
+<main>
+  <h1>💖 Dancing Hearts</h1>
+
+  <div id="game" style="display:flex; flex-direction:column; gap:16px">
+    <div class="top"><span id="round">1 / 5</span><span id="score">0 b.</span></div>
+    <div id="bar"><div id="fill"></div><div id="secs"></div></div>
+    <div id="desc"></div>
+    <div id="hint">Poskladaj slovo!</div>
+    <div id="answer" class="row"></div>
+    <div id="pool" class="row"></div>
+  </div>
+
+  <div id="end">
+    <div>Koniec! Tvoje body:</div>
+    <div class="big" id="final">0</div>
+    <button class="main" id="again">Hrať znova</button>
+  </div>
+</main>
+
+<script>
+// ---- Content: comes from the "Dancing Hearts" Google Sheet ----
+const SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRrIUPEITb7Hno72SM7LWPvB8VeFSxTyiYTAoShPNA5xXkDcJpMy3L3emwhZsKWO5MfMuvhsoZoqKpe/pub?gid=1938244848&single=true&output=csv";
+let WORDS = [];
+const SECONDS = 20;
+let ROUNDS = 5;
+
+// Read the sheet's CSV text into rows (handles "quoted, text")
+function parseCSV(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (c === '"') q = false;
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); rows.push(row); row = []; cell = "";
+    } else cell += c;
+  }
+  row.push(cell); rows.push(row);
+  return rows;
+}
+
+async function load() {
+  $("hint").textContent = "Načítavam…";
+  try {
+    const text = await (await fetch(SHEET)).text();
+    WORDS = parseCSV(text).slice(1)                       // skip the header row
+      .map(r => ({ word: (r[0] || "").trim(), desc: (r[1] || "").trim(), group: (r[2] || "").trim() }))
+      .filter(w => !w.word.includes(" ")                  // one-word terms only, for now
+                && new Set(w.word.toUpperCase()).size > 1);  // needs letters to mix up
+    if (!WORDS.length) throw new Error("no words");
+    ROUNDS = Math.min(5, WORDS.length);
+    start();
+  } catch (e) {
+    $("hint").textContent = "Nepodarilo sa načítať slová. Skús to znova.";
+  }
+}
+
+// ---- Game ----
+const $ = id => document.getElementById(id);
+let round, score, used, item, word, picked, mistakes, busy, clock, t0;
+
+function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(p => p[1]); }
+
+function start() {
+  round = 0; score = 0; used = [];
+  $("end").style.display = "none"; $("game").style.display = "flex";
+  nextRound();
+}
+
+function nextRound() {
+  round++;
+  $("round").textContent = round + " / " + ROUNDS;
+  $("score").textContent = score + " b.";
+  $("hint").textContent = "Poskladaj slovo!";
+  $("answer").className = "row";
+  const left = WORDS.filter(w => !used.includes(w));
+  item = left[Math.floor(Math.random() * left.length)];
+  used.push(item);
+  word = item.word.toUpperCase();
+  $("desc").textContent = item.desc;
+  picked = []; mistakes = 0; busy = false;
+
+  // mix the letters (never leave them in the right order)
+  let letters = word.split("");
+  do { letters = shuffle(letters); } while (letters.join("") === word);
+
+  $("pool").innerHTML = "";
+  letters.forEach(ch => {
+    const b = document.createElement("button");
+    b.className = "letter";
+    b.textContent = ch;
+    b.onclick = () => pick(b);
+    $("pool").appendChild(b);
+  });
+  drawAnswer();
+
+  // time bar
+  t0 = Date.now();
+  clearInterval(clock);
+  clock = setInterval(tick, 100);
+  tick();
+}
+
+function timeLeft() { return Math.max(0, 1 - (Date.now() - t0) / (SECONDS * 1000)); }
+
+function tick() {
+  const left = timeLeft();
+  $("fill").style.width = left * 100 + "%";
+  $("secs").textContent = Math.ceil(left * SECONDS) + " s";
+  if (left <= 0 && !busy) {
+    busy = true;
+    clearInterval(clock);
+    $("answer").className = "row bad";
+    $("hint").textContent = "Čas vypršal! Je to: " + word;
+    setTimeout(next, 2000);
+  }
+}
+
+function drawAnswer() {
+  $("answer").innerHTML = "";
+  for (let i = 0; i < word.length; i++) {
+    const b = picked[i];
+    const el = document.createElement(b ? "button" : "div");
+    el.className = b ? "letter" : "slot";
+    if (b) { el.textContent = b.textContent; el.onclick = () => unpick(i); }
+    $("answer").appendChild(el);
+  }
+}
+
+function pick(b) {
+  if (busy || b.classList.contains("used")) return;
+  b.classList.add("used");
+  picked.push(b);
+  drawAnswer();
+  if (picked.length === word.length) check();
+}
+
+function unpick(i) {
+  if (busy) return;
+  picked[i].classList.remove("used");
+  picked.splice(i, 1);
+  drawAnswer();
+}
+
+function check() {
+  busy = true;
+  const guess = picked.map(b => b.textContent).join("");
+  if (guess === word) {
+    clearInterval(clock);
+    // 100 points + up to 100 more for speed; half after a mistake
+    let points = 100 + Math.round(timeLeft() * 100);
+    if (mistakes > 0) points = Math.round(points / 2);
+    score += points;
+    $("answer").className = "row ok";
+    $("hint").textContent = "Správne! +" + points;
+    $("score").textContent = score + " b.";
+    setTimeout(next, 1500);
+  } else if (mistakes === 0) {
+    // first mistake: try again (the clock keeps running)
+    mistakes++;
+    $("answer").className = "row bad";
+    $("hint").textContent = "Skús ešte raz!";
+    setTimeout(() => {
+      if (timeLeft() <= 0) { busy = false; return; }  // let the clock show "time's up"
+      picked.forEach(b => b.classList.remove("used"));
+      picked = []; busy = false;
+      $("answer").className = "row";
+      $("hint").textContent = "Poskladaj slovo!";
+      drawAnswer();
+    }, 1000);
+  } else {
+    // second mistake: show the right word and move on
+    clearInterval(clock);
+    $("answer").className = "row bad";
+    $("hint").textContent = "Je to: " + word;
+    setTimeout(next, 2000);
+  }
+}
+
+function next() { round < ROUNDS ? nextRound() : finish(); }
+
+function finish() {
+  $("game").style.display = "none";
+  $("end").style.display = "flex";
+  $("final").textContent = score;
+}
+
+$("again").onclick = start;
+load();
+</script>
+</body>
+</html>
