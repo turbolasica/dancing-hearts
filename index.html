@@ -36,8 +36,6 @@
   }
   .play:active { transform: scale(.96); }
   .play .tri { font-size: 44px; line-height: 1; }
-  #about { max-width: 270px; margin: 26px auto 0; text-align: center;
-           font-size: 14px; line-height: 1.6; color: #6b5a5e; }
   /* home screen: title sits lower, closer to the middle */
   main.home h1 { margin-top: 6vh; }
   .label { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #bc8390; margin-bottom: 4px; }
@@ -101,6 +99,11 @@
   #who button { border: 0; background: none; font: inherit; color: #a14f68; font-weight: 800; text-decoration: underline; cursor: pointer; }
   .pill { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer;
           padding: 10px 22px; border-radius: 999px; margin: 4px auto 0; box-shadow: 0 4px 14px rgba(161, 79, 104, .15); }
+  /* rules screen */
+  #rulesScreen { display: none; flex-direction: column; gap: 12px; }
+  #rulesScreen h2 { text-align: center; font-size: 22px; font-weight: 900; color: #3d2329; }
+  .rules { max-width: none; margin: 0; gap: 8px; }
+  .rules p { font-size: 15px; line-height: 1.5; color: #1f1316; }
   /* leaderboard screen */
   #boardScreen { display: none; flex-direction: column; gap: 14px; }
   #boardScreen h2 { text-align: center; font-size: 22px; font-weight: 900; color: #3d2329; }
@@ -117,8 +120,14 @@
   #hearts.hit { animation: hit .5s; }
   @keyframes hit { 0%, 100% { transform: none; } 20% { transform: translateX(-8px) scale(1.15); }
                    40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(4px); } }
-  .soundbtn { font-size: 14px; padding: 9px 14px; margin: 0; }
-  .soundbtn.off { opacity: .5; }
+  .soundbtn { font-size: 15px; padding: 8px 10px 8px 14px; margin: 0; display: flex; align-items: center; gap: 8px; }
+  /* small on/off switch inside the button: pink + knob right = on, grey + knob left = off */
+  .tog { width: 36px; height: 20px; border-radius: 10px; background: #4c9a5f; position: relative; flex: none; transition: background .2s; }
+  .tog::after { content: ""; position: absolute; top: 2px; left: 18px; width: 16px; height: 16px; border-radius: 50%;
+                background: #fff; transition: left .2s; }
+  .soundbtn.off { color: #9b8a8e; }
+  .soundbtn.off .tog { background: #cfc3c6; }
+  .soundbtn.off .tog::after { left: 2px; }
   #countMsg { font-size: 15px; color: #6b5a5e; }
   #end { text-align: center; display: none; flex-direction: column; gap: 16px; padding-top: 40px; }
   #end .big { font-size: 64px; font-weight: 800; color: #a14f68; }
@@ -142,12 +151,38 @@
     <div id="styles"></div>
     <div id="who"></div>
     <div id="top3" class="card" style="display:none"></div>
-    <button id="boardBtn" class="pill" style="display:none">🏆 Celý rebríček</button>
-    <div id="about">
-      Poskladaj z písmen názov tanečného kroku. Pomôže ti krátka nápoveda.
-      Slová sú čoraz ťažšie a máš 3 srdiečka. Dlhšie slovo a rýchla odpoveď
-      znamenajú viac bodov.
+    <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap">
+      <button id="boardBtn" class="pill" style="display:none; margin:4px 0 0">🏆 Celý rebríček</button>
+      <button id="rulesBtn" class="pill" style="margin:4px 0 0">📖 Pravidlá</button>
     </div>
+  </div>
+
+  <div id="rulesScreen">
+    <h2>📖 Pravidlá</h2>
+    <div class="card rules">
+      <div class="label">Ako sa hrá</div>
+      <p>Poskladaj z písmen názov tanečného kroku. Ťukaj na písmená v správnom poradí. Ak sa pomýliš, ťukni na písmeno hore a vráti sa späť.</p>
+      <p>💡 Nápoveda ti povie, čo slovo znamená.</p>
+      <p>Hra má 10 slov a sú čoraz ťažšie: najprv 3 krátke (10 sekúnd), potom 4 stredné (15 sekúnd) a nakoniec 3 dlhé (20 sekúnd).</p>
+    </div>
+    <div class="card rules">
+      <div class="label">Srdiečka</div>
+      <p>❤️❤️❤️ Máš 3 srdiečka. Keď sa pri slove pomýliš, môžeš to skúsiť ešte raz. Srdiečko stratíš, keď sa pomýliš druhýkrát alebo keď ti vyprší čas.</p>
+      <p>Keď ti dôjdu srdiečka, hra končí.</p>
+    </div>
+    <div class="card rules">
+      <div class="label">Body</div>
+      <p>Za každé písmeno správneho slova dostaneš 10 bodov. Čím rýchlejšie odpovieš, tým viac – až dvojnásobok.</p>
+      <p>Ak slovo poskladáš až na druhý pokus, dostaneš polovicu bodov.</p>
+    </div>
+    <div class="card rules">
+      <div class="label">Súťaž</div>
+      <p>🏆 Súťažíš so všetkými vo svojej vekovej skupine. Počíta sa tvoja najlepšia hra v mesiaci.</p>
+      <p>Do súťaže sa počítajú iba prvé 3 hry za deň. Aj hra, ktorú ukončíš skôr, sa počíta. Ďalšie hry sú tréning.</p>
+      <p>👕 Najlepší v každej vekovej skupine vyhrá na konci mesiaca tričko.</p>
+      <p>Používaj iba prezývku, nie celé meno.</p>
+    </div>
+    <button class="main" id="rulesBack" style="background:#fff; color:#a14f68">Späť</button>
   </div>
 
   <div id="boardScreen">
@@ -187,7 +222,12 @@
 // ---- Content: comes from the "Dancing Hearts" Google Sheet ----
 const SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRrIUPEITb7Hno72SM7LWPvB8VeFSxTyiYTAoShPNA5xXkDcJpMy3L3emwhZsKWO5MfMuvhsoZoqKpe/pub?gid=1366488319&single=true&output=csv";
 let WORDS = [];
-const TIME = { 1: 10, 2: 15, 3: 20 };   // seconds per word, by difficulty (sheet column "level")
+// Difficulty comes only from word length: easy ≤5 letters, medium 6–7, hard 8+
+const GROUPS = [
+  { name: "easy",   fits: n => n <= 5,           count: 3, seconds: 10 },
+  { name: "medium", fits: n => n >= 6 && n <= 7, count: 4, seconds: 15 },
+  { name: "hard",   fits: n => n >= 8,           count: 3, seconds: 20 },
+];
 let SECONDS = 20;
 let ROUNDS = 5;
 
@@ -217,7 +257,6 @@ async function load() {
     // columns: word, description, style, level
     WORDS = parseCSV(text).slice(1)                       // skip the header row
       .map(r => ({ word: (r[0] || "").trim(), desc: (r[1] || "").trim(),
-                   // style is not used for now; level = how hard the word is (1 easy … 3 hard)
                    // (to switch styles back on: use (r[2] || "").trim() here)
                    style: "▶ Hrať", level: parseInt(r[3]) || 1 }))
       .filter(w => !w.word.includes(" ")                  // one-word terms only, for now
@@ -239,7 +278,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124153333";
+const VERSION = "20261124154047";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -314,8 +353,8 @@ function stopMusic() { clearInterval(music); music = null; }
 let musicOff = (() => { try { return localStorage.getItem("dh-music") === "0"; } catch (e) { return false; } })();
 function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function drawSoundButtons() {
-  $("music").textContent = musicOff ? "🎵 Hudba vyp." : "🎵 Hudba zap.";
-  $("mute").textContent = muted ? "🔇 Zvuky vyp." : "🔊 Zvuky zap.";
+  $("music").innerHTML = "🎵 Hudba <span class='tog'></span>";
+  $("mute").innerHTML = "🔊 Zvuky <span class='tog'></span>";
   $("music").classList.toggle("off", musicOff);
   $("mute").classList.toggle("off", muted);
 }
@@ -336,7 +375,12 @@ async function loadCats() {
   return CATS;
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
-function hideAll() { ["menu", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
+function hideAll() { ["menu", "rulesScreen", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
+function showRules() {
+  hideAll(); $("rulesScreen").style.display = "flex";
+  document.querySelector("main").classList.remove("home");
+  window.scrollTo(0, 0);
+}
 
 // Home page: login card (first time, or "zmeniť") or "Hráš ako …", then the play button
 function showMenu() {
@@ -448,14 +492,13 @@ const HEARTS = 3;
 let hearts;
 function play() {
   sfx.start();
-  // easiest first: by difficulty (the sheet's "level" column), then by length; ties mixed
-  const sorted = shuffle(WORDS).sort((a, b) => a.level - b.level || a.word.length - b.word.length);
-  ROUNDS = Math.min(10, sorted.length);
+  // each game: 3 easy, 4 medium, 3 hard words, picked at random within each group
   POOL = [];
-  for (let i = 0; i < ROUNDS; i++) {
-    const from = Math.floor(i * sorted.length / ROUNDS), to = Math.floor((i + 1) * sorted.length / ROUNDS);
-    POOL.push(sorted[from + Math.floor(Math.random() * (to - from))]);
-  }
+  GROUPS.forEach(g => {
+    shuffle(WORDS.filter(w => g.fits(w.word.length))).slice(0, g.count)
+      .forEach(w => POOL.push({ ...w, seconds: g.seconds }));
+  });
+  ROUNDS = POOL.length;
   start();
 }
 function drawHearts() { $("hearts").textContent = "❤️".repeat(hearts) + "💔".repeat(HEARTS - hearts); }
@@ -487,7 +530,7 @@ function nextRound() {
   $("hint").textContent = "Poskladaj slovo!";
   $("answer").className = "row";
   item = POOL[round - 1];
-  SECONDS = TIME[item.level] || 20;
+  SECONDS = item.seconds;
   word = item.word.toUpperCase();
   document.documentElement.style.setProperty("--n", Math.max(9, word.length));
   $("desc").textContent = item.desc;
@@ -630,6 +673,8 @@ $("mute").onclick = toggleMute;
 $("music").onclick = toggleMusic;
 $("boardBtn").onclick = showBoard;
 $("boardBack").onclick = showMenu;
+$("rulesBtn").onclick = showRules;
+$("rulesBack").onclick = showMenu;
 load();
 </script>
 </body>
