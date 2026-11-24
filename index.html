@@ -332,7 +332,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124210934";
+const VERSION = "20261124212137";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -709,20 +709,20 @@ function drawShareMsg() {
 let lastResult = null;                 // { score, words, place, cls } for the picture
 // ---- Dance titles: the points of a game give a title (Slovak for the youngest, English for older) ----
 const KIDS_GROUP = "do 10 rokov";
-const TITLES = {
+const TITLES = {          // pre = small words before the title on the picture ("Som", "I am the" …)
   kids: [
-    { from: 0,    title: "Tanečné srdiečko 💖", line: "Moje srdiečko tancuje v Alegrii" },
-    { from: 500,  title: "Rytmus v srdci",      line: "Rytmus mám v srdci" },
-    { from: 900,  title: "Zlaté nohy",          line: "Mám zlaté nohy" },
-    { from: 1300, title: "Hviezda parketu ⭐",   line: "Som hviezda parketu v Alegrii" },
-    { from: 1700, title: "Legenda parketu 👑",   line: "Som legenda parketu v Alegrii" },
+    { from: 0,    pre: "Som",        title: "Tanečné srdiečko 💖" },
+    { from: 500,  pre: "Mám",        title: "Rytmus v srdci" },
+    { from: 900,  pre: "Mám",        title: "Zlaté nohy" },
+    { from: 1300, pre: "Som",        title: "Hviezda parketu ⭐" },
+    { from: 1700, pre: "Som",        title: "Legenda parketu 👑" },
   ],
   teens: [
-    { from: 0,    title: "Dance mode: ON",        line: "Just getting started · Alegria" },
-    { from: 500,  title: "Born to dance",         line: "Born to dance · Alegria" },
-    { from: 900,  title: "Beat in my DNA",        line: "Got the beat in my DNA · Alegria" },
-    { from: 1300, title: "Main character energy", line: "Main character on the dance floor · Alegria" },
-    { from: 1700, title: "Dance floor legend 👑",  line: "Dance floor legend · Alegria" },
+    { from: 0,    pre: "I'm in",       title: "Dance mode" },
+    { from: 500,  pre: "I was",        title: "Born to dance" },
+    { from: 900,  pre: "I've got the", title: "Beat in my DNA" },
+    { from: 1300, pre: "I've got",     title: "Main character energy" },
+    { from: 1700, pre: "I am the",     title: "Dance floor legend 👑" },
   ],
 };
 function isKids(cls) { return !cls || cls === KIDS_GROUP; }
@@ -758,32 +758,58 @@ async function makePicture() {
     // ---- neon poster (11 a viac) ----
     const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#1a0b14"); g.addColorStop(1, "#3a1226");
     x.fillStyle = g; x.fillRect(0, 0, W, H);
-    for (let i = 0; i < 14; i++) { x.strokeStyle = "rgba(220,137,111," + (0.06 + i * 0.012) + ")"; x.lineWidth = 3;
-      x.beginPath(); x.arc(W / 2, 1180, 200 + i * 50, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); }
+    // stage spotlights from the top
+    [[120, -60, 380, 1500], [W - 120, -60, W - 380, 1500], [W / 2, -80, W / 2, 1450]].forEach(([x1, y1, x2, y2], k) => {
+      const lg = x.createLinearGradient(x1, y1, x2, y2);
+      lg.addColorStop(0, k === 2 ? "rgba(255,200,220,.20)" : "rgba(255,143,184,.22)"); lg.addColorStop(1, "rgba(255,143,184,0)");
+      x.fillStyle = lg; x.beginPath(); x.moveTo(x1 - 30, y1); x.lineTo(x1 + 30, y1); x.lineTo(x2 + 260, y2); x.lineTo(x2 - 260, y2); x.closePath(); x.fill();
+    });
+    // glowing dance floor in perspective
+    x.save(); x.strokeStyle = "rgba(255,95,162,.28)"; x.lineWidth = 3;
+    for (let k = 0; k <= 12; k++) { x.beginPath(); x.moveTo(W / 2 + (k - 6) * 40, 1560); x.lineTo(W / 2 + (k - 6) * 260, H); x.stroke(); }
+    for (let k = 0; k < 6; k++) { const yy = 1560 + Math.pow(k / 5, 1.8) * (H - 1560); x.globalAlpha = 0.5 + k * 0.1;
+      x.beginPath(); x.moveTo(0, yy); x.lineTo(W, yy); x.stroke(); }
+    x.restore();
+    // faint music notes
+    x.fillStyle = "rgba(230,171,150,.22)";
+    [[130, 560, 90, "♪"], [950, 640, 110, "♫"], [90, 1180, 80, "♫"], [990, 1260, 90, "♪"], [870, 380, 60, "♪"]]
+      .forEach(([nx, ny, sz, ch]) => { x.font = sz + "px Nunito"; x.fillText(ch, nx, ny); });
     x.fillStyle = "#e6ab96"; x.font = "800 64px Nunito"; x.letterSpacing = "26px"; x.fillText("ALEGRIA", W / 2 + 13, 230); x.letterSpacing = "0px";
+    x.fillStyle = "#ff8fb8"; x.font = "italic 900 72px Nunito"; x.fillText(t.pre, W / 2, 440);
     x.shadowColor = "#ff5fa2"; x.shadowBlur = 45; x.fillStyle = "#fff";
-    const end = fitText(x, t.title.toUpperCase(), W / 2, 420, 900, 210, "{s}px Anton", 1.0);
+    const end = fitText(x, t.title.toUpperCase(), W / 2, 460, 900, 210, "{s}px Anton", 1.0);
     x.shadowBlur = 0;
-    x.fillStyle = "#ff8fb8"; fitText(x, t.line, W / 2, end + 40, 900, 64, "italic 900 {s}px Nunito", 1.2, 2);
-    x.strokeStyle = "#ff8fb8"; x.lineWidth = 5; x.beginPath(); x.roundRect(300, 1330, 480, 140, 70); x.stroke();
-    x.fillStyle = "#fff"; x.font = "900 72px Nunito"; x.fillText((r.score || 0) + " b.", W / 2, 1425);
-    x.fillStyle = "rgba(255,255,255,.65)"; x.font = "800 42px Nunito"; x.fillText((p.nick || "") + " · " + place, W / 2, 1560);
-    x.fillStyle = "#e6ab96"; x.font = "800 48px Nunito"; x.fillText("Dancing Hearts 💖", W / 2, 1780);
+    x.fillStyle = "#ff8fb8"; x.font = "italic 900 72px Nunito"; x.fillText("at Alegria", W / 2, end + 110);
+    x.strokeStyle = "#ff8fb8"; x.lineWidth = 5; x.beginPath(); x.roundRect(300, 1300, 480, 130, 65); x.stroke();
+    x.fillStyle = "#fff"; x.font = "900 68px Nunito"; x.fillText((r.score || 0) + " b.", W / 2, 1389);
+    x.fillStyle = "rgba(255,255,255,.7)"; x.font = "800 42px Nunito"; x.fillText((p.nick || "") + " · " + place, W / 2, 1500);
+    x.fillStyle = "#e6ab96"; x.font = "800 48px Nunito"; x.fillText("Dancing Hearts 💖", W / 2, 1810);
   } else {
     // ---- cheerful (do 10 rokov) ----
     const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#ffe3d6"); g.addColorStop(1, "#f2c4d2");
     x.fillStyle = g; x.fillRect(0, 0, W, H);
-    [[140, 330, 70], [930, 420, 90], [110, 1800, 90], [960, 1780, 70], [1010, 1100, 50], [70, 1020, 55]]
+    // flowing dance ribbons
+    [["rgba(220,137,111,.35)", 520, 0], ["rgba(161,79,104,.22)", 1480, 1.7], ["rgba(255,255,255,.55)", 1000, 3.1]].forEach(([col, y0, ph]) => {
+      x.strokeStyle = col; x.lineWidth = 26; x.lineCap = "round"; x.beginPath();
+      for (let xx = -40; xx <= W + 40; xx += 10) { const yy = y0 + Math.sin(xx / 150 + ph) * 90 + Math.sin(xx / 61 + ph) * 25; xx === -40 ? x.moveTo(xx, yy) : x.lineTo(xx, yy); }
+      x.stroke();
+    });
+    // faint music notes and hearts
+    x.fillStyle = "rgba(161,79,104,.18)";
+    [[110, 560, 100, "♪"], [980, 700, 110, "♫"], [80, 1420, 90, "♫"], [1000, 1620, 90, "♪"]]
+      .forEach(([nx, ny, sz, ch]) => { x.font = sz + "px Nunito"; x.fillText(ch, nx, ny); });
+    [[140, 330, 70], [930, 420, 90], [110, 1800, 90], [960, 1780, 70]]
       .forEach(([hx, hy, sz]) => { x.font = sz + "px Nunito"; x.fillText("💖", hx, hy); });
     x.fillStyle = "#a14f68"; x.font = "900 150px Nunito"; x.fillText("ALEGRIA", W / 2, 330);
     x.fillStyle = "#dc896f"; x.font = "900 72px Nunito"; x.fillText("Dancing Hearts", W / 2, 440);
     x.fillStyle = "#fff"; x.beginPath(); x.roundRect(120, 560, 840, 820, 70); x.fill();
-    x.fillStyle = "#3d2329"; x.font = "800 58px Nunito"; x.fillText(p.nick || "", W / 2, 680);
-    x.fillStyle = "#a14f68"; const end = fitText(x, t.title, W / 2, 720, 760, 130, "900 {s}px Nunito", 1.08, 2);
+    x.fillStyle = "#3d2329"; x.font = "800 50px Nunito"; x.fillText(p.nick || "", W / 2, 660);
+    x.fillStyle = "#dc896f"; x.font = "900 64px Nunito"; x.fillText(t.pre, W / 2, 760);
+    x.fillStyle = "#a14f68"; const end = fitText(x, t.title, W / 2, 770, 760, 130, "900 {s}px Nunito", 1.08, 2);
     x.fillStyle = "#dc896f"; x.beginPath(); x.roundRect(340, end + 50, 400, 120, 60); x.fill();
     x.fillStyle = "#fff"; x.font = "900 64px Nunito"; x.fillText((r.score || 0) + " bodov", W / 2, end + 132);
     x.fillStyle = "#6b5a5e"; x.font = "800 44px Nunito"; x.fillText(r.place ? "🏆 " + r.place + ". miesto · " + (r.cls || p.cls) : (r.cls || p.cls || ""), W / 2, 1320);
-    x.fillStyle = "#3d2329"; fitText(x, t.line + " 🩰", W / 2, 1450, 900, 70, "900 {s}px Nunito", 1.2, 2);
+    x.fillStyle = "#3d2329"; x.font = "900 76px Nunito"; x.fillText("v Alegrii 🩰", W / 2, 1530);
   }
   return new Promise(res => c.toBlob(res, "image/png"));
 }
