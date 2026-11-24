@@ -147,7 +147,7 @@
 
   <div id="menu" style="display:flex; flex-direction:column; gap:12px">
     <div class="sub">Zbieraj body a vyhraj! 💖</div>
-    <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
+    <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700"></div>
     <div id="styles"></div>
     <div id="top3" class="card" style="display:none; margin-top:22px"></div>
     <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:14px">
@@ -273,7 +273,6 @@ async function load() {
       .filter(w => !w.word.includes(" ")                  // one-word terms only, for now
                 && new Set(w.word.toUpperCase()).size > 1);  // needs letters to mix up
     if (!WORDS.length) throw new Error("no words");
-    showMenu();
   } catch (e) {
     $("menuHint").textContent = "Nepodarilo sa načítať slová.";
     $("styles").innerHTML = "";
@@ -289,7 +288,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124160724";
+const VERSION = "20261124161226";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -381,9 +380,17 @@ const MONTHS = ["január", "február", "marec", "apríl", "máj", "jún", "júl"
 let CATS = null, chosenCat = "", boardCat = "";
 function getPlayer() { try { return JSON.parse(localStorage.getItem(PKEY)); } catch (e) { return null; } }
 function setPlayer(p) { store(PKEY, JSON.stringify(p)); }
-async function loadCats() {
-  if (!CATS) try { CATS = (await (await fetch(API)).json()).classes || null; } catch (e) {}
-  return CATS;
+function cacheGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+function cacheSet(k, v) { store(k, JSON.stringify(v)); }
+let catsFresh = null;
+function loadCats() {
+  // fetch once per visit; meanwhile use what the phone remembers from last time
+  if (!catsFresh) catsFresh = fetch(API).then(r => r.json()).then(d => {
+    if (d.classes && d.classes.length) { CATS = d.classes; cacheSet("dh-cats", CATS); }
+    return CATS;
+  }).catch(() => CATS);
+  if (!CATS) CATS = cacheGet("dh-cats");
+  return CATS ? Promise.resolve(CATS) : catsFresh;
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
 function hideAll() { document.querySelector("main").classList.remove("login"); ["menu", "loginScreen", "rulesScreen", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
@@ -413,9 +420,11 @@ function showMenu() {
 let boards = {};
 function getBoard(cat) {
   if (!boards[cat]) boards[cat] = fetch(API + "?action=board&class=" + encodeURIComponent(cat))
-    .then(r => r.json()).then(d => d.board || []).catch(() => { delete boards[cat]; return null; });
+    .then(r => r.json()).then(d => { const b = d.board || []; cacheSet("dh-board-" + cat, b); return b; })
+    .catch(() => { delete boards[cat]; return cacheGet("dh-board-" + cat); });
   return boards[cat];
 }
+function savedBoard(cat) { return cacheGet("dh-board-" + cat); }   // last list this phone saw
 
 // Home page: the first 3 places this month, for everyone; chips switch between the age groups
 let top3Cat = "";
@@ -424,9 +433,11 @@ async function showTop3() {
   const cats = (await loadCats()) || [];
   if (!cats.length) return;
   if (!cats.includes(top3Cat)) top3Cat = (p && cats.includes(p.cls)) ? p.cls : cats[0];
-  cats.forEach(getBoard);                              // load all groups at once
-  drawTop3(cats, p, null);                             // draw the chips straight away
-  drawTop3(cats, p, await getBoard(top3Cat));
+  cats.forEach(getBoard);                              // refresh all groups at once, in the background
+  const before = savedBoard(top3Cat);
+  drawTop3(cats, p, before);                           // show the remembered list straight away
+  const fresh = await getBoard(top3Cat);
+  if (JSON.stringify(fresh) !== JSON.stringify(before)) drawTop3(cats, p, fresh);   // redraw only if it changed
 }
 function drawTop3(cats, p, list) {
   if ($("menu").style.display === "none") return;
@@ -443,7 +454,7 @@ function drawTop3(cats, p, list) {
     const t = document.createElement("button");
     t.className = "chip mini-chip" + (c === top3Cat ? " on" : "");
     t.textContent = c;
-    t.onclick = async () => { top3Cat = c; drawTop3(cats, p, null); drawTop3(cats, p, await getBoard(c)); };
+    t.onclick = async () => { top3Cat = c; drawTop3(cats, p, savedBoard(c)); drawTop3(cats, p, await getBoard(c)); };
     $("top3tabs").appendChild(t);
   });
   $("top3").style.display = "flex";
@@ -708,10 +719,11 @@ $("music").onclick = toggleMusic;
 $("boardBtn").onclick = showBoard;
 $("boardBack").onclick = showMenu;
 $("rulesBtn").onclick = showRules;
-$("go").onclick = () => { if (saveLogin()) play(); };
+$("go").onclick = () => { if (saveLogin()) wordsReady.then(() => { if (WORDS.length) play(); }); };
 $("loginBack").onclick = showMenu;
 $("rulesBack").onclick = showMenu;
-load();
+const wordsReady = load();   // words load in the background
+showMenu();                  // the home page appears straight away
 </script>
 </body>
 </html>
