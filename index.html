@@ -40,7 +40,7 @@
   #about { max-width: 270px; margin: 26px auto 0; text-align: center;
            font-size: 14px; line-height: 1.6; color: #6b5a5e; }
   /* home screen: title sits lower, closer to the middle */
-  main.home h1 { margin-top: 12vh; }
+  main.home h1 { margin-top: 6vh; }
   .label { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #bc8390; margin-bottom: 4px; }
   .top { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 18px; }
   #quit { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 22px; font-weight: 800;
@@ -77,6 +77,30 @@
     font: inherit; font-size: 20px; font-weight: 700; padding: 18px;
     border: 0; border-radius: 16px; background: #a14f68; color: #fff; cursor: pointer;
   }
+  /* who is playing + leaderboard */
+  #who { text-align: center; font-size: 14px; color: #6b5a5e; margin-top: 18px; }
+  #who button { border: 0; background: none; font: inherit; color: #a14f68; font-weight: 800; text-decoration: underline; cursor: pointer; }
+  #board { background: #fff; border-radius: 20px; padding: 14px 18px; margin-top: 10px; box-shadow: 0 6px 20px rgba(161, 79, 104, .08); }
+  #board .label { text-align: center; margin-bottom: 6px; }
+  #board ol { list-style: none; }
+  #board li { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f3e3e6; font-size: 16px; color: #1f1316; }
+  #board li:last-child { border-bottom: 0; }
+  #board li.me { font-weight: 800; color: #a14f68; }
+  #board .rank { width: 24px; color: #bc8390; font-weight: 800; }
+  #board .nm { flex: 1; }
+  #board .empty { text-align: center; font-size: 14px; color: #6b5a5e; padding: 6px 0; }
+  /* first-time screen: nickname + class */
+  #profile { display: none; flex-direction: column; gap: 14px; margin-top: 4vh; }
+  #profile h2 { text-align: center; font-size: 24px; font-weight: 900; color: #3d2329; }
+  #profile input, #profile select {
+    font: inherit; font-size: 18px; padding: 14px 16px; width: 100%;
+    border: 2px solid #ecd5d9; border-radius: 14px; background: #fff; color: #1f1316;
+    -webkit-user-select: text; user-select: text; -webkit-appearance: none; appearance: none;
+  }
+  #profile input:focus, #profile select:focus { outline: none; border-color: #dc896f; }
+  .note { text-align: center; font-size: 13px; color: #6b5a5e; }
+  #pErr { text-align: center; font-size: 15px; font-weight: 700; color: #b9473f; min-height: 20px; }
+  #countMsg { font-size: 15px; color: #6b5a5e; }
   #end { text-align: center; display: none; flex-direction: column; gap: 16px; padding-top: 40px; }
   #end .big { font-size: 64px; font-weight: 800; color: #a14f68; }
 </style>
@@ -89,11 +113,22 @@
     <div class="sub">Zbieraj body a vyhraj! 💖</div>
     <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
     <div id="styles"></div>
+    <div id="who"></div>
+    <div id="board" style="display:none"></div>
     <div id="about">
       Poskladaj z písmen názov tanečného kroku. Pomôže ti krátka nápoveda.
       Dlhšie slovo a rýchla odpoveď znamenajú viac bodov.
       Za 4 z 5 správnych odpovedí postúpiš na ďalšiu úroveň.
     </div>
+  </div>
+
+  <div id="profile">
+    <h2>Kto hrá?</h2>
+    <input id="nick" maxlength="20" placeholder="Prezývka, napr. Ema B." autocomplete="off">
+    <select id="cls"><option value="">Vyber svoju triedu…</option></select>
+    <div class="note">Stačí prezývka – neuvádzaj celé meno.</div>
+    <div id="pErr"></div>
+    <button class="main" id="saveProfile">Hotovo</button>
   </div>
 
   <div id="game" style="display:none; flex-direction:column; gap:16px">
@@ -111,6 +146,7 @@
     <div class="big" id="final">0</div>
     <div id="result" style="font-size:20px; font-weight:700"></div>
     <div id="levelMsg" style="font-size:20px"></div>
+    <div id="countMsg"></div>
     <button class="main" id="again">Hrať znova</button>
     <button class="main" id="back" style="background:#fff; color:#a14f68">Späť</button>
   </div>
@@ -175,6 +211,78 @@ document.addEventListener("visibilitychange", () => {
   else if (hiddenAt && Date.now() - hiddenAt > 30 * 60 * 1000) location.reload();
 });
 
+// ---- Player (nickname + class, kept on this phone) and leaderboard ----
+// The script in the Google Sheet saves scores and reads the leaderboard.
+const API = "https://script.google.com/macros/s/AKfycbyJlyoBcDS41p040DZqEKvv_BkLdHdb6x12ihtDAuh6yX_kbwxD70mYcXdxbNDxRPrFIw/exec";
+const PKEY = "dh-player";
+const MONTHS = ["január", "február", "marec", "apríl", "máj", "jún", "júl", "august", "september", "október", "november", "december"];
+let CLASSES = null;
+function getPlayer() { try { return JSON.parse(localStorage.getItem(PKEY)); } catch (e) { return null; } }
+function setPlayer(p) { try { localStorage.setItem(PKEY, JSON.stringify(p)); } catch (e) {} }
+
+function hideAll() {
+  ["menu", "profile", "game", "end"].forEach(id => $(id).style.display = "none");
+}
+
+async function showProfile() {
+  hideAll();
+  $("profile").style.display = "flex";
+  document.querySelector("main").classList.add("home");
+  const p = getPlayer() || {};
+  $("nick").value = p.nick || "";
+  $("pErr").textContent = "";
+  if (!CLASSES) {
+    $("pErr").textContent = "Načítavam triedy…";
+    try { CLASSES = (await (await fetch(API)).json()).classes || []; $("pErr").textContent = ""; }
+    catch (e) { $("pErr").textContent = "Triedy sa nepodarilo načítať. Skús znova."; return; }
+  }
+  $("cls").innerHTML = '<option value="">Vyber svoju triedu…</option>' +
+    CLASSES.map(c => "<option>" + esc(c) + "</option>").join("");
+  $("cls").value = p.cls || "";
+}
+
+function saveProfile() {
+  const nick = $("nick").value.replace(/\s+/g, " ").trim();
+  const cls = $("cls").value;
+  if (nick.length < 2) { $("pErr").textContent = "Napíš prezývku."; return; }
+  if (!cls) { $("pErr").textContent = "Vyber triedu."; return; }
+  setPlayer({ nick, cls });
+  showMenu();
+}
+
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+// Save one game (finished or quit). Returns the script's answer, or null if it failed.
+async function sendScore() {
+  const p = getPlayer();
+  if (!p) return null;
+  try {
+    const r = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ nick: p.nick, class: p.cls, score, level: levelsOf(style).indexOf(level) + 1 }) });
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+async function loadBoard() {
+  const p = getPlayer();
+  if (!p) return;
+  $("who").innerHTML = "Hráš ako <b>" + esc(p.nick) + "</b> · " + esc(p.cls) + " · <button id='change'>zmeniť</button>";
+  $("change").onclick = showProfile;
+  $("board").style.display = "block";
+  const title = "<div class='label'>Rebríček · " + MONTHS[new Date().getMonth()] + "</div>";
+  if (!$("board").innerHTML) $("board").innerHTML = title + "<div class='empty'>Načítavam…</div>";
+  try {
+    const list = (await (await fetch(API + "?action=board&class=" + encodeURIComponent(p.cls))).json()).board || [];
+    $("board").innerHTML = title + (list.length
+      ? "<ol>" + list.map((r, i) =>
+          "<li class='" + (String(r.nick).toLowerCase() === p.nick.toLowerCase() ? "me" : "") + "'>" +
+          "<span class='rank'>" + (i + 1) + ".</span><span class='nm'>" + esc(r.nick) + "</span><span>" + r.score + "</span></li>").join("") + "</ol>"
+      : "<div class='empty'>Tento mesiac v tvojej triede ešte nikto nehral.</div>");
+  } catch (e) {
+    $("board").innerHTML = title + "<div class='empty'>Rebríček sa nepodarilo načítať.</div>";
+  }
+}
+
 // ---- Styles and levels (progress is kept only on this phone) ----
 const KEY = "dh-progress";
 function getProgress() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
@@ -187,7 +295,9 @@ function currentLevel(s) {           // highest level unlocked so far (level 1 a
 }
 
 function showMenu() {
-  $("game").style.display = "none"; $("end").style.display = "none"; $("menu").style.display = "flex";
+  if (!getPlayer()) { showProfile(); return; }        // first time: nickname + class
+  hideAll(); $("menu").style.display = "flex";
+  loadBoard();
   document.querySelector("main").classList.add("home");
   $("menuHint").textContent = "";
   $("styles").innerHTML = "";
@@ -221,7 +331,7 @@ function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] 
 
 function start() {
   round = 0; score = 0; correct = 0; used = [];
-  $("menu").style.display = "none"; $("end").style.display = "none"; $("game").style.display = "flex";
+  hideAll(); $("game").style.display = "flex";
   document.querySelector("main").classList.remove("home");
   $("lvl").textContent = "Úroveň " + (levelsOf(style).indexOf(level) + 1);
   nextRound();
@@ -345,11 +455,22 @@ function next() {
 }
 
 // ✕ button: stop the game and go back to the home page
-function quit() { clearInterval(clock); busy = true; showMenu(); }
+function quit() {
+  clearInterval(clock); busy = true;
+  const played = round > 1 || score > 0;
+  showMenu();
+  if (played) sendScore().then(loadBoard);
+}
 
 function finish() {
-  $("game").style.display = "none";
+  hideAll();
   $("end").style.display = "flex";
+  $("countMsg").textContent = "Ukladám…";
+  sendScore().then(r => {
+    $("countMsg").textContent = !r || !r.ok ? "Body sa nepodarilo uložiť."
+      : r.counted ? "✓ Hra sa počíta do mesačnej súťaže."
+      : "Dnes už máš 3 súťažné hry. Táto sa nepočíta, ale trénovať môžeš ďalej!";
+  });
   $("final").textContent = score;
   $("result").textContent = correct + " z " + ROUNDS + " správne";
 
@@ -373,6 +494,7 @@ function finish() {
 $("again").onclick = () => play(style);
 $("back").onclick = showMenu;
 $("quit").onclick = quit;
+$("saveProfile").onclick = saveProfile;
 load();
 </script>
 </body>
