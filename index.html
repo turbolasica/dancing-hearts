@@ -323,7 +323,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124182628";
+const VERSION = "20261124182945";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -373,6 +373,12 @@ const sfx0 = {
   win()   { [79, 83, 86, 91].forEach((n, i) => tone(N(n), 0.3, "triangle", 0.18, i * 0.08)); },
   lose()  { tone(N(64), 0.22, "triangle", 0.16); tone(N(60), 0.35, "triangle", 0.16, 0.18); },
   bonus() { [84, 88, 91, 96, 100].forEach((n, i) => tone(N(n), 0.18, "sine", 0.14, 0.25 + i * 0.05)); },
+  // all 10 words done: a short victory tune (our own), melody with a soft chord under the last note
+  fanfare() {
+    [[67, 0, .15], [72, 0.15, .15], [76, 0.3, .15], [79, 0.45, .3], [76, 0.8, .15], [79, 0.95, .7]]
+      .forEach(([n, t, d]) => tone(N(n), d + 0.05, "triangle", 0.2, t));
+    [60, 64, 67, 72].forEach(n => tone(N(n), 1.1, "sine", 0.07, 0.95));
+  },
 };
 // sound effects play only when "Zvuky" is on
 const sfx = Object.fromEntries(Object.entries(sfx0).map(([k, f]) => [k, () => { if (!muted) f(); }]));
@@ -865,6 +871,7 @@ function finish() {
   $("final").textContent = score;
   $("result").textContent = "Poskladané slová: " + correct + " z " + ROUNDS;
   $("levelMsg").textContent = hearts > 0 ? "🏆 Celá cesta zvládnutá!" : "💔 Došli srdiečka.";
+  if (hearts > 0) sfx.fanfare();                     // all 10 words done
 }
 
 $("again").onclick = () => { if (getToday().played < MAX_PER_DAY) play(); };
