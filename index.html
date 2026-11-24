@@ -43,8 +43,8 @@
   main.home h1 { margin-top: 6vh; }
   .label { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #bc8390; margin-bottom: 4px; }
   .top { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 18px; }
-  #quit { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 22px; font-weight: 800;
-          width: 48px; height: 48px; border-radius: 50%; cursor: pointer; margin: 10px auto 0;
+  .roundbtn { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 22px; font-weight: 800;
+          width: 48px; height: 48px; border-radius: 50%; cursor: pointer; margin-top: 10px;
           box-shadow: 0 4px 14px rgba(161, 79, 104, .15); }
 
   #bar { position: relative; height: 28px; background: #ecd5d9; border-radius: 14px; overflow: hidden; }
@@ -138,7 +138,10 @@
     <div id="hint">Poskladaj slovo!</div>
     <div id="answer" class="row"></div>
     <div id="pool" class="row"></div>
-    <button id="quit" aria-label="Koniec hry">✕</button>
+    <div style="display:flex; justify-content:center; gap:14px">
+      <button id="mute" class="roundbtn" aria-label="Zvuk">🔊</button>
+      <button id="quit" class="roundbtn" aria-label="Koniec hry">✕</button>
+    </div>
   </div>
 
   <div id="end">
@@ -207,9 +210,64 @@ async function load() {
 // so the phone always gets the newest version and the newest words.
 let hiddenAt = 0;
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) hiddenAt = Date.now();
-  else if (hiddenAt && Date.now() - hiddenAt > 30 * 60 * 1000) location.reload();
+  if (document.hidden) { hiddenAt = Date.now(); stopMusic(); return; }   // phone hid the app: music off
+  if (hiddenAt && Date.now() - hiddenAt > 30 * 60 * 1000) location.reload();
+  else if ($("game").style.display !== "none") startMusic();
 });
+
+// ---- Sounds: all made right here in the game (no music files, nothing copied) ----
+let AC = null, music = null;
+let muted = (() => { try { return localStorage.getItem("dh-muted") === "1"; } catch (e) { return false; } })();
+function ac() {
+  if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if (AC.state === "suspended") AC.resume();
+  return AC;
+}
+// one soft note: frequency, length (s), wave, volume, start delay (s), optional slide to another frequency
+function tone(f, dur, type = "sine", vol = 0.2, when = 0, slide) {
+  if (muted) return;
+  const a = ac(), t = a.currentTime + when, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+const N = n => 440 * Math.pow(2, (n - 69) / 12);          // note number → frequency
+const sfx = {
+  start() { [72, 76, 79, 84].forEach((n, i) => tone(N(n), 0.25, "triangle", 0.18, i * 0.07)); },
+  good()  { tone(880, 0.09, "sine", 0.22, 0, 1320); },                    // letter in the right place
+  bad()   { tone(240, 0.14, "triangle", 0.16, 0, 150); },                 // letter in the wrong place
+  win()   { [79, 83, 86, 91].forEach((n, i) => tone(N(n), 0.3, "triangle", 0.18, i * 0.08)); },
+  lose()  { tone(N(64), 0.22, "triangle", 0.16); tone(N(60), 0.35, "triangle", 0.16, 0.18); },
+};
+
+// background tune: a short, gentle loop (our own melody), quiet under the effects
+const MELODY = [76, 79, 81, 79, 76, 74, 72, 74, 76, 79, 81, 84, 81, 79, 76, 79,
+                77, 81, 84, 81, 79, 76, 74, 76, 72, 74, 76, 79, 76, 74, 72, 0];
+const BASS = [48, 45, 41, 43];                            // C, A, F, G – one per bar
+function startMusic() {
+  stopMusic();
+  if (muted) return;
+  const a = ac(), step = 0.3;                             // one eighth note = 0.3 s (100 bpm)
+  let i = 0, next = a.currentTime + 0.1;
+  music = setInterval(() => {
+    while (next < a.currentTime + 0.4) {
+      const n = MELODY[i % 32];
+      if (n) tone(N(n), 0.26, "sine", 0.045, next - a.currentTime);
+      if (i % 4 === 0) tone(N(BASS[Math.floor(i / 8) % 4]), 0.55, "triangle", 0.06, next - a.currentTime);
+      i++; next += step;
+    }
+  }, 100);
+}
+function stopMusic() { clearInterval(music); music = null; }
+function toggleMute() {
+  muted = !muted;
+  try { localStorage.setItem("dh-muted", muted ? "1" : "0"); } catch (e) {}
+  $("mute").textContent = muted ? "🔇" : "🔊";
+  if (muted) stopMusic(); else if ($("game").style.display !== "none") startMusic();
+}
 
 // ---- Player (nickname + class, kept on this phone) and leaderboard ----
 // The script in the Google Sheet saves scores and reads the leaderboard.
@@ -316,6 +374,7 @@ function showMenu() {
 }
 
 function play(s) {
+  sfx.start();
   style = s;
   level = currentLevel(s);
   POOL = WORDS.filter(w => w.style === style && w.level === level);
@@ -332,6 +391,8 @@ function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] 
 function start() {
   round = 0; score = 0; correct = 0; used = [];
   hideAll(); $("game").style.display = "flex";
+  $("mute").textContent = muted ? "🔇" : "🔊";
+  setTimeout(startMusic, 400);
   document.querySelector("main").classList.remove("home");
   $("lvl").textContent = "Úroveň " + (levelsOf(style).indexOf(level) + 1);
   nextRound();
@@ -383,6 +444,7 @@ function tick() {
     clearInterval(clock);
     $("answer").className = "row bad";
     $("hint").textContent = "Čas vypršal! Je to: " + word;
+    sfx.lose();
     setTimeout(next, 2000);
   }
 }
@@ -402,6 +464,7 @@ function pick(b) {
   if (busy || b.classList.contains("used")) return;
   b.classList.add("used");
   picked.push(b);
+  b.textContent === word[picked.length - 1] ? sfx.good() : sfx.bad();
   drawAnswer();
   if (picked.length === word.length) check();
 }
@@ -423,6 +486,7 @@ function check() {
     if (mistakes > 0) points = Math.round(points / 2);
     score += points;
     correct++;
+    sfx.win();
     $("answer").className = "row ok";
     $("hint").textContent = "Správne! +" + points;
     $("score").textContent = score + " b.";
@@ -432,6 +496,7 @@ function check() {
     mistakes++;
     $("answer").className = "row bad";
     $("hint").textContent = "Skús ešte raz!";
+    sfx.lose();
     setTimeout(() => {
       if (timeLeft() <= 0) { busy = false; return; }  // let the clock show "time's up"
       picked.forEach(b => b.classList.remove("used"));
@@ -445,6 +510,7 @@ function check() {
     clearInterval(clock);
     $("answer").className = "row bad";
     $("hint").textContent = "Je to: " + word;
+    sfx.lose();
     setTimeout(next, 2000);
   }
 }
@@ -456,14 +522,14 @@ function next() {
 
 // ✕ button: stop the game and go back to the home page
 function quit() {
-  clearInterval(clock); busy = true;
+  clearInterval(clock); busy = true; stopMusic();
   const played = round > 1 || score > 0;
   showMenu();
   if (played) sendScore().then(loadBoard);
 }
 
 function finish() {
-  hideAll();
+  hideAll(); stopMusic();
   $("end").style.display = "flex";
   $("countMsg").textContent = "Ukladám…";
   sendScore().then(r => {
@@ -495,6 +561,7 @@ $("again").onclick = () => play(style);
 $("back").onclick = showMenu;
 $("quit").onclick = quit;
 $("saveProfile").onclick = saveProfile;
+$("mute").onclick = toggleMute;
 load();
 </script>
 </body>
