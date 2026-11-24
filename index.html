@@ -109,6 +109,7 @@
           font: inherit; font-size: 15px; font-weight: 800; color: #3d2329; }
   .chip.on { background: #a14f68; border-color: #a14f68; color: #fff; }
   .mini-chip { font-size: 13px; padding: 5px 12px; }
+  #endTop { text-align: left; }
   .note { text-align: center; font-size: 12px; color: #6b5a5e; }
   #pErr { text-align: center; font-size: 14px; font-weight: 700; color: #b9473f; }
   #pErr:empty { display: none; }
@@ -211,7 +212,8 @@
       <div class="label">Body</div>
       <p>Za krátke slovo dostaneš 50 bodov, za stredné 70 a za dlhé 100. Čím rýchlejšie odpovieš, tým viac – až dvojnásobok.</p>
       <p>⚡ Blesk: ak slovo poskladáš na prvý pokus za menej ako polovicu času, dostaneš bonus navyše – za krátke slovo +25, za stredné +35, za dlhé +50 bodov.</p>
-      <p>Ak slovo poskladáš až na druhý pokus, dostaneš polovicu bodov a bez bonusu.</p>
+      <p>✨ Bez chyby: ak pri slove ani raz neťukneš na zlé písmeno, dostaneš rovnaký bonus ešte raz. Oba bonusy môžeš získať naraz.</p>
+      <p>Ak slovo poskladáš až na druhý pokus, dostaneš polovicu bodov a bez bonusov.</p>
     </div>
     <div class="card rules">
       <div class="label">Súťaž</div>
@@ -256,7 +258,8 @@
     <div id="result" style="font-size:20px; font-weight:700"></div>
     <div id="levelMsg" style="font-size:20px"></div>
     <div id="countMsg"></div>
-    <div id="placeMsg" style="font-size:18px; font-weight:800; color:#a14f68"></div>
+    <div id="placeMsg"></div>
+    <div id="endTop" class="card" style="display:none; margin:0 auto"></div>
     <button class="pill" id="endBoard" style="margin:0 auto">🏆 Rebríček</button>
     <button class="play small" id="again" style="margin:6px auto 0"><span class="tri">▶</span><span>Znova</span></button>
     <div id="doneMsg" style="display:none; font-size:18px; font-weight:800">Na dnes je to všetko. Príď zajtra! 💖</div>
@@ -323,7 +326,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124182945";
+const VERSION = "20261124201137";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -657,16 +660,17 @@ async function showBoard() {
 }
 
 // ---- Little celebrations: "+points" floats up; the lightning bonus adds a golden flash and sparkles ----
-function celebrate(points, bonus) {
+function celebrate(points, bonus, clean) {
   const box = $("answer").getBoundingClientRect(), g = $("game").getBoundingClientRect();
   const x = box.left - g.left + box.width / 2, y = box.top - g.top + box.height / 2;
   const f = document.createElement("div");
-  f.className = "float" + (bonus ? " gold" : "");
-  f.textContent = bonus ? "⚡ +" + (points + bonus) : "+" + points;
+  const extra = (bonus || 0) + (clean || 0);
+  f.className = "float" + (extra ? " gold" : "");
+  f.textContent = (bonus ? "⚡" : "") + (clean ? "✨" : "") + " +" + (points + extra);
   f.style.left = x + "px"; f.style.top = y + "px";
   $("game").appendChild(f);
   setTimeout(() => f.remove(), 1300);
-  if (!bonus) return;
+  if (!extra) return;
   sfx.bonus();
   $("answer").classList.add("flash");
   setTimeout(() => $("answer").classList.remove("flash"), 900);
@@ -681,6 +685,17 @@ function celebrate(points, bonus) {
     $("game").appendChild(sp);
     setTimeout(() => sp.remove(), 1000);
   }
+}
+
+// End screen: the first places of my age group right away (fresh after this game)
+async function showEndTop(p) {
+  const d = await getBoard(p.cls);
+  if (!d || !d.board.length || $("end").style.display === "none") return;
+  const me = p.nick.toLowerCase(), medals = ["🥇", "🥈", "🥉"];
+  $("endTop").innerHTML = "<div class='mini'><ol>" + d.board.slice(0, 3).map((r, i) =>
+    "<li class='" + (r.nick.toLowerCase() === me ? "me" : "") + "'><span class='rank'>" + medals[i] + "</span><span class='nm'>" +
+    esc(r.nick) + "</span><span>" + r.score + "</span></li>").join("") + "</ol></div>";
+  $("endTop").style.display = "flex";
 }
 
 // ---- Hearts: every game climbs from easy to hard words; 3 hearts, at most 10 words ----
@@ -705,6 +720,7 @@ function loseHeart() {
 
 // ---- Game ----
 const $ = id => document.getElementById(id);
+let slips = 0;   // letters tapped into a wrong place (or taken back) in this word
 let round, score, correct, used, item, word, picked, mistakes, busy, clock, t0, POOL;
 
 function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(p => p[1]); }
@@ -731,7 +747,7 @@ function nextRound() {
   word = item.word.toUpperCase();
   document.documentElement.style.setProperty("--n", Math.max(9, word.length));
   $("desc").textContent = item.desc;
-  picked = []; mistakes = 0; busy = false;
+  picked = []; mistakes = 0; busy = false; slips = 0;
 
   // mix the letters (never leave them in the right order)
   let letters = word.split("");
@@ -785,7 +801,7 @@ function pick(b) {
   if (busy || b.classList.contains("used")) return;
   b.classList.add("used");
   picked.push(b);
-  b.textContent === word[picked.length - 1] ? sfx.good() : sfx.bad();
+  if (b.textContent === word[picked.length - 1]) sfx.good(); else { sfx.bad(); slips++; }
   drawAnswer();
   if (picked.length === word.length) check();
 }
@@ -794,6 +810,7 @@ function unpick(i) {
   if (busy) return;
   picked[i].classList.remove("used");
   picked.splice(i, 1);
+  slips++;
   drawAnswer();
 }
 
@@ -807,12 +824,14 @@ function check() {
     if (mistakes > 0) points = Math.round(points / 2);
     // ⚡ bonus: done in less than half the time, on the first try → half the word's points extra
     const bonus = mistakes === 0 && timeLeft() >= 0.5 ? Math.round(item.points / 2) : 0;
-    score += points + bonus;
+    // ✨ bonus: no wrong letter at all → the same extra again
+    const clean = mistakes === 0 && slips === 0 ? Math.round(item.points / 2) : 0;
+    score += points + bonus + clean;
     correct++;
     sfx.win();
     $("answer").className = "row ok";
-    $("hint").textContent = bonus ? "⚡ Blesk! +" + points + " a bonus +" + bonus : "Správne! +" + points;
-    celebrate(points, bonus);
+    $("hint").textContent = "Správne! +" + points + (bonus ? " ⚡+" + bonus : "") + (clean ? " ✨+" + clean : "");
+    celebrate(points, bonus, clean);
     $("score").textContent = score + " b.";
     setTimeout(next, 1500);
   } else if (mistakes === 0) {
@@ -855,17 +874,21 @@ function quit() {
 function finish() {
   hideAll(); stopMusic();
   $("end").style.display = "flex";
-  $("countMsg").textContent = "Ukladám…"; $("placeMsg").textContent = "";
+  $("countMsg").textContent = "Ukladám…"; $("placeMsg").textContent = ""; $("endTop").style.display = "none";
   $("again").style.display = "flex"; $("doneMsg").style.display = "none";
   sendScore().then(r => {
     const p = getPlayer();
     $("countMsg").textContent = r.ok
-      ? (r.counted ? "✓ Hra sa počíta do súťaže (" + r.countedToday + ". z " + COUNTED_PER_DAY + " dnes)."
-                   : "Tréning – dnešné súťažné hry už máš.")
+      ? (r.counted ? "" : "Táto hra sa do súťaže nepočíta – dnešné 3 súťažné hry už máš. Toto bol tréning.")
       : r.error === "limit" ? "Dnes už máš " + MAX_PER_DAY + " hier, táto sa neuložila."
       : r.error === "auth" ? "Body sa neuložili – PIN nesedí. Prihlás sa znova."
       : "Body sa nepodarilo uložiť.";
-    if (r.ok && r.me) $("placeMsg").textContent = "Tvoje miesto: " + r.me.rank + ". z " + r.me.total + " · " + p.cls;
+    if (r.ok && r.me) {
+      $("placeMsg").innerHTML = "<div style='font-size:15px;color:#6b5a5e'>Tvoje miesto v rebríčku</div>" +
+        "<div style='font-size:40px;font-weight:900;color:#a14f68;line-height:1.1'>" + r.me.rank + ".</div>" +
+        "<div style='font-size:14px;color:#6b5a5e'>kategória: " + esc(p.cls) + "</div>";
+      showEndTop(p);
+    }
     if (getToday().played >= MAX_PER_DAY) { $("again").style.display = "none"; $("doneMsg").style.display = "block"; }
   });
   $("final").textContent = score;
