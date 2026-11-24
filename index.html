@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#a14f68">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap&subset=latin-ext" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&family=Anton&display=swap&subset=latin-ext" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -256,6 +256,7 @@
   <div id="end">
     <div>Koniec! Tvoje body:</div>
     <div class="big" id="final">0</div>
+    <div id="titleMsg"></div>
     <div id="result" style="font-size:20px; font-weight:700"></div>
     <div id="levelMsg" style="font-size:20px"></div>
     <div id="countMsg"></div>
@@ -331,7 +332,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124203534";
+const VERSION = "20261124210934";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -706,30 +707,84 @@ function drawShareMsg() {
     : "📸 Zdieľaj svoj výsledok na Instagram<br>a hráš o odmenu!";
 }
 let lastResult = null;                 // { score, words, place, cls } for the picture
+// ---- Dance titles: the points of a game give a title (Slovak for the youngest, English for older) ----
+const KIDS_GROUP = "do 10 rokov";
+const TITLES = {
+  kids: [
+    { from: 0,    title: "Tanečné srdiečko 💖", line: "Moje srdiečko tancuje v Alegrii" },
+    { from: 500,  title: "Rytmus v srdci",      line: "Rytmus mám v srdci" },
+    { from: 900,  title: "Zlaté nohy",          line: "Mám zlaté nohy" },
+    { from: 1300, title: "Hviezda parketu ⭐",   line: "Som hviezda parketu v Alegrii" },
+    { from: 1700, title: "Legenda parketu 👑",   line: "Som legenda parketu v Alegrii" },
+  ],
+  teens: [
+    { from: 0,    title: "Dance mode: ON",        line: "Just getting started · Alegria" },
+    { from: 500,  title: "Born to dance",         line: "Born to dance · Alegria" },
+    { from: 900,  title: "Beat in my DNA",        line: "Got the beat in my DNA · Alegria" },
+    { from: 1300, title: "Main character energy", line: "Main character on the dance floor · Alegria" },
+    { from: 1700, title: "Dance floor legend 👑",  line: "Dance floor legend · Alegria" },
+  ],
+};
+function isKids(cls) { return !cls || cls === KIDS_GROUP; }
+function titleFor(points, cls) {
+  const list = TITLES[isKids(cls) ? "kids" : "teens"];
+  return list.filter(t => points >= t.from).pop();
+}
+
+// write text centred, shrinking and breaking into lines so it fits the width
+function fitText(x, text, cx, top, maxW, size, weightFamily, lineGap = 1.05, maxLines = 3) {
+  let lines;
+  for (;;) {
+    x.font = weightFamily.replace("{s}", size);
+    lines = []; let cur = "";
+    text.split(" ").forEach(w => { const t = cur ? cur + " " + w : w; if (x.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; });
+    lines.push(cur);
+    if ((lines.length <= maxLines && lines.every(l => x.measureText(l).width <= maxW)) || size < 40) break;
+    size -= 6;
+  }
+  lines.forEach((l, k) => x.fillText(l, cx, top + size * (k + 1) * lineGap));
+  return top + size * lines.length * lineGap;
+}
+
 async function makePicture() {
   await document.fonts.ready;
+  try { await document.fonts.load("100px Anton"); await document.fonts.load("900 100px Nunito"); } catch (e) {}
   const c = document.createElement("canvas"); c.width = 1080; c.height = 1920;
-  const x = c.getContext("2d"), W = 1080, p = getPlayer() || {}, r = lastResult || {};
-  const bg = x.createLinearGradient(0, 0, W, 1920);
-  bg.addColorStop(0, "#fbe7e0"); bg.addColorStop(0.5, "#f6dde3"); bg.addColorStop(1, "#e9c6cf");
-  x.fillStyle = bg; x.fillRect(0, 0, W, 1920);
+  const x = c.getContext("2d"), W = 1080, H = 1920, p = getPlayer() || {}, r = lastResult || {};
+  const t = titleFor(r.score || 0, r.cls || p.cls);
+  const place = r.place ? "#" + r.place + " · " + (r.cls || p.cls) : (r.cls || p.cls || "");
   x.textAlign = "center";
-  const font = (w, s) => w + " " + s + "px Nunito, system-ui, sans-serif";
-  x.fillStyle = "#bc8390"; x.font = font(800, 40); x.letterSpacing = "12px"; x.fillText("ALEGRIA", W / 2, 230); x.letterSpacing = "0px";
-  const tg = x.createLinearGradient(160, 0, 920, 0); tg.addColorStop(0, "#dc896f"); tg.addColorStop(1, "#a14f68");
-  x.fillStyle = tg; x.font = font(900, 124); x.fillText("Dancing Hearts", W / 2, 380);
-  // white card
-  x.fillStyle = "rgba(255,255,255,.92)"; x.beginPath(); x.roundRect(110, 520, 860, 820, 60); x.fill();
-  x.fillStyle = "#3d2329"; x.font = font(800, 64); x.fillText(p.nick || "", W / 2, 650);
-  x.fillStyle = "#a14f68"; x.font = font(900, 250); x.fillText(String(r.score || 0), W / 2, 920);
-  x.fillStyle = "#6b5a5e"; x.font = font(700, 54); x.fillText("bodov", W / 2, 1000);
-  x.fillStyle = "#3d2329"; x.font = font(800, 58);
-  x.fillText(r.place ? "🏆 " + r.place + ". miesto" : "💖 " + (r.words || 0) + " z 10 slov", W / 2, 1150);
-  x.fillStyle = "#6b5a5e"; x.font = font(600, 44); x.fillText(r.place ? (r.cls || "") : "", W / 2, 1230);
-  // invitation + Instagram name, big
-  x.fillStyle = "#3d2329"; x.font = font(700, 52); x.fillText("Tancujem v štúdiu Alegria 🩰", W / 2, 1500);
-  x.fillStyle = "#a14f68"; x.font = font(900, 96); x.fillText(IG, W / 2, 1640);
-  x.fillStyle = "#6b5a5e"; x.font = font(600, 40); x.fillText("Trnava", W / 2, 1720);
+  if (!isKids(r.cls || p.cls)) {
+    // ---- neon poster (11 a viac) ----
+    const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#1a0b14"); g.addColorStop(1, "#3a1226");
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 14; i++) { x.strokeStyle = "rgba(220,137,111," + (0.06 + i * 0.012) + ")"; x.lineWidth = 3;
+      x.beginPath(); x.arc(W / 2, 1180, 200 + i * 50, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); }
+    x.fillStyle = "#e6ab96"; x.font = "800 64px Nunito"; x.letterSpacing = "26px"; x.fillText("ALEGRIA", W / 2 + 13, 230); x.letterSpacing = "0px";
+    x.shadowColor = "#ff5fa2"; x.shadowBlur = 45; x.fillStyle = "#fff";
+    const end = fitText(x, t.title.toUpperCase(), W / 2, 420, 900, 210, "{s}px Anton", 1.0);
+    x.shadowBlur = 0;
+    x.fillStyle = "#ff8fb8"; fitText(x, t.line, W / 2, end + 40, 900, 64, "italic 900 {s}px Nunito", 1.2, 2);
+    x.strokeStyle = "#ff8fb8"; x.lineWidth = 5; x.beginPath(); x.roundRect(300, 1330, 480, 140, 70); x.stroke();
+    x.fillStyle = "#fff"; x.font = "900 72px Nunito"; x.fillText((r.score || 0) + " b.", W / 2, 1425);
+    x.fillStyle = "rgba(255,255,255,.65)"; x.font = "800 42px Nunito"; x.fillText((p.nick || "") + " · " + place, W / 2, 1560);
+    x.fillStyle = "#e6ab96"; x.font = "800 48px Nunito"; x.fillText("Dancing Hearts 💖", W / 2, 1780);
+  } else {
+    // ---- cheerful (do 10 rokov) ----
+    const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#ffe3d6"); g.addColorStop(1, "#f2c4d2");
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    [[140, 330, 70], [930, 420, 90], [110, 1800, 90], [960, 1780, 70], [1010, 1100, 50], [70, 1020, 55]]
+      .forEach(([hx, hy, sz]) => { x.font = sz + "px Nunito"; x.fillText("💖", hx, hy); });
+    x.fillStyle = "#a14f68"; x.font = "900 150px Nunito"; x.fillText("ALEGRIA", W / 2, 330);
+    x.fillStyle = "#dc896f"; x.font = "900 72px Nunito"; x.fillText("Dancing Hearts", W / 2, 440);
+    x.fillStyle = "#fff"; x.beginPath(); x.roundRect(120, 560, 840, 820, 70); x.fill();
+    x.fillStyle = "#3d2329"; x.font = "800 58px Nunito"; x.fillText(p.nick || "", W / 2, 680);
+    x.fillStyle = "#a14f68"; const end = fitText(x, t.title, W / 2, 720, 760, 130, "900 {s}px Nunito", 1.08, 2);
+    x.fillStyle = "#dc896f"; x.beginPath(); x.roundRect(340, end + 50, 400, 120, 60); x.fill();
+    x.fillStyle = "#fff"; x.font = "900 64px Nunito"; x.fillText((r.score || 0) + " bodov", W / 2, end + 132);
+    x.fillStyle = "#6b5a5e"; x.font = "800 44px Nunito"; x.fillText(r.place ? "🏆 " + r.place + ". miesto · " + (r.cls || p.cls) : (r.cls || p.cls || ""), W / 2, 1320);
+    x.fillStyle = "#3d2329"; fitText(x, t.line + " 🩰", W / 2, 1450, 900, 70, "900 {s}px Nunito", 1.2, 2);
+  }
   return new Promise(res => c.toBlob(res, "image/png"));
 }
 async function sharePicture() {
@@ -940,6 +995,9 @@ function finish() {
   $("end").style.display = "flex";
   $("countMsg").textContent = "Ukladám…"; $("placeMsg").textContent = ""; $("endTop").style.display = "none";
   lastResult = { score, words: correct, place: null, cls: (getPlayer() || {}).cls };
+  const tt = titleFor(score, lastResult.cls);
+  $("titleMsg").innerHTML = "<div style='font-size:14px;color:#6b5a5e'>Tvoj titul</div>" +
+    "<div style='font-size:30px;font-weight:900;color:#dc896f;line-height:1.15'>" + tt.title + "</div>";
   drawShareMsg();
   $("again").style.display = "flex"; $("doneMsg").style.display = "none";
   sendScore().then(r => {
