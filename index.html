@@ -92,13 +92,19 @@
   .chip { border: 2px solid #ecd5d9; background: #fff; border-radius: 999px; padding: 9px 16px; cursor: pointer;
           font: inherit; font-size: 15px; font-weight: 800; color: #3d2329; }
   .chip.on { background: #a14f68; border-color: #a14f68; color: #fff; }
+  .mini-chip { font-size: 13px; padding: 5px 12px; }
   .note { text-align: center; font-size: 12px; color: #6b5a5e; }
   #pErr { text-align: center; font-size: 14px; font-weight: 700; color: #b9473f; }
   #pErr:empty { display: none; }
   .pill { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer;
           padding: 10px 22px; border-radius: 999px; margin: 4px auto 0; box-shadow: 0 4px 14px rgba(161, 79, 104, .15); }
   /* "who is playing" screen, shown after tapping Hrať */
-  #loginScreen { display: none; flex-direction: column; gap: 14px; margin-top: 4vh; }
+  #loginScreen { display: none; flex-direction: column; gap: 14px; margin-top: 10vh; }
+  main.login h1 { display: none; }
+  .play.small { width: 130px; height: 130px; font-size: 20px; margin-top: 22px; }
+  .play.small .tri { font-size: 34px; }
+  .linkbtn { border: 0; background: none; font: inherit; font-size: 16px; font-weight: 800; color: #a14f68;
+             cursor: pointer; padding: 10px; margin: 0 auto; }
   #loginScreen .card { max-width: none; margin: 0; padding: 20px; gap: 12px; }
   /* rules screen */
   #rulesScreen { display: none; flex-direction: column; gap: 12px; }
@@ -143,8 +149,8 @@
     <div class="sub">Zbieraj body a vyhraj! 💖</div>
     <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
     <div id="styles"></div>
-    <div id="top3" class="card" style="display:none"></div>
-    <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap">
+    <div id="top3" class="card" style="display:none; margin-top:22px"></div>
+    <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:14px">
       <button id="boardBtn" class="pill" style="margin:4px 0 0">🏆 Rebríček</button>
       <button id="rulesBtn" class="pill" style="margin:4px 0 0">📖 Pravidlá</button>
     </div>
@@ -158,8 +164,8 @@
       <div class="note">Stačí prezývka – neuvádzaj celé meno.</div>
       <div id="pErr"></div>
     </div>
-    <button class="main" id="go">▶ Začať hru</button>
-    <button class="main" id="loginBack" style="background:#fff; color:#a14f68">Späť</button>
+    <button class="play small" id="go"><span class="tri">▶</span><span>Začať</span></button>
+    <button class="linkbtn" id="loginBack">← Späť</button>
   </div>
 
   <div id="rulesScreen">
@@ -283,7 +289,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124155420";
+const VERSION = "20261124160119";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -380,7 +386,7 @@ async function loadCats() {
   return CATS;
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
-function hideAll() { ["menu", "loginScreen", "rulesScreen", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
+function hideAll() { document.querySelector("main").classList.remove("login"); ["menu", "loginScreen", "rulesScreen", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
 function showRules() {
   hideAll(); $("rulesScreen").style.display = "flex";
   document.querySelector("main").classList.remove("home");
@@ -399,27 +405,42 @@ function showMenu() {
   b.onclick = showLogin;
   $("styles").appendChild(b);
   const p = getPlayer();
-  if (p) showTop3(p); else $("top3").style.display = "none";
+  showTop3();
 }
 
-// Home page: the first 3 places of my age group this month
-async function showTop3(p) {
-  try {
-    const list = (await (await fetch(API + "?action=board&class=" + encodeURIComponent(p.cls))).json()).board || [];
-    if (!list.length || $("menu").style.display === "none") return;
-    const medals = ["🥇", "🥈", "🥉"];
-    $("top3").innerHTML = "<div class='label'>Najlepší · " + esc(p.cls) + "</div><div class='mini'><ol>" +
-      list.slice(0, 3).map((r, i) => "<li class='" + (String(r.nick).toLowerCase() === p.nick.toLowerCase() ? "me" : "") + "'>" +
-        "<span class='rank'>" + medals[i] + "</span><span class='nm'>" + esc(r.nick) + "</span><span>" + r.score + "</span></li>").join("") +
-      "</ol></div>";
-    $("top3").style.display = "flex";
-  } catch (e) {}
+// Home page: the first 3 places this month, for everyone; chips switch between the age groups
+let top3Cat = "";
+async function showTop3() {
+  const p = getPlayer();
+  const cats = (await loadCats()) || [];
+  if (!cats.length || $("menu").style.display === "none") return;
+  if (!cats.includes(top3Cat)) top3Cat = (p && cats.includes(p.cls)) ? p.cls : cats[0];
+  let list = [];
+  try { list = (await (await fetch(API + "?action=board&class=" + encodeURIComponent(top3Cat))).json()).board || []; } catch (e) {}
+  if ($("menu").style.display === "none") return;
+  const me = p && p.cls === top3Cat ? p.nick.toLowerCase() : null;
+  const medals = ["🥇", "🥈", "🥉"];
+  $("top3").innerHTML = "<div class='label'>Najlepší tento mesiac</div><div class='chips' id='top3tabs'></div>" +
+    (list.length
+      ? "<div class='mini'><ol>" + list.slice(0, 3).map((r, i) =>
+          "<li class='" + (String(r.nick).toLowerCase() === me ? "me" : "") + "'>" +
+          "<span class='rank'>" + medals[i] + "</span><span class='nm'>" + esc(r.nick) + "</span><span>" + r.score + "</span></li>").join("") + "</ol></div>"
+      : "<div class='note' style='padding:6px 0'>Tento mesiac tu ešte nikto nehral. Buď prvý!</div>");
+  cats.forEach(c => {
+    const t = document.createElement("button");
+    t.className = "chip mini-chip" + (c === top3Cat ? " on" : "");
+    t.textContent = c;
+    t.onclick = () => { top3Cat = c; showTop3(); };
+    $("top3tabs").appendChild(t);
+  });
+  $("top3").style.display = "flex";
 }
 
 // "Kto hrá?" screen: nickname + age group (filled in from last time), then start the game
 async function showLogin() {
   hideAll(); $("loginScreen").style.display = "flex";
   document.querySelector("main").classList.remove("home");
+  document.querySelector("main").classList.add("login");
   const p = getPlayer();
   $("nick").value = p ? p.nick : ""; chosenCat = p ? p.cls : ""; $("pErr").textContent = "";
   $("cats").innerHTML = "<span class='note'>Načítavam…</span>";
