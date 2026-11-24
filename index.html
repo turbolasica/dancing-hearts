@@ -158,7 +158,7 @@
 
   <div id="loginScreen">
     <div id="login" class="card">
-      <div class="label">Kto hrá?</div>
+      <div class="label">Vyber si prezývku a vekovú kategóriu</div>
       <input id="nick" maxlength="20" placeholder="Tvoja prezývka" autocomplete="off">
       <div id="cats" class="chips"></div>
       <div class="note">Stačí prezývka – neuvádzaj celé meno.</div>
@@ -193,14 +193,14 @@
       <p>👕 Najlepší v každej vekovej skupine vyhrá na konci mesiaca tričko.</p>
       <p>Používaj iba prezývku, nie celé meno.</p>
     </div>
-    <button class="main" id="rulesBack" style="background:#fff; color:#a14f68">Späť</button>
+    <button class="linkbtn" id="rulesBack">← Späť</button>
   </div>
 
   <div id="boardScreen">
     <h2 id="boardTitle">🏆 Rebríček</h2>
     <div id="tabs" class="chips"></div>
     <div id="board"></div>
-    <button class="main" id="boardBack" style="background:#fff; color:#a14f68">Späť</button>
+    <button class="linkbtn" id="boardBack">← Späť</button>
   </div>
 
   <div id="game" style="display:none; flex-direction:column; gap:16px">
@@ -225,7 +225,7 @@
     <div id="levelMsg" style="font-size:20px"></div>
     <div id="countMsg"></div>
     <button class="main" id="again">Hrať znova</button>
-    <button class="main" id="back" style="background:#fff; color:#a14f68">Späť</button>
+    <button class="linkbtn" id="back">← Späť</button>
   </div>
 </main>
 
@@ -289,7 +289,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124160119";
+const VERSION = "20261124160724";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -405,7 +405,16 @@ function showMenu() {
   b.onclick = showLogin;
   $("styles").appendChild(b);
   const p = getPlayer();
+  boards = {};                                         // fresh scores each time the home page opens
   showTop3();
+}
+
+// Leaderboard lists, fetched once per visit to the home page and kept, so switching is instant
+let boards = {};
+function getBoard(cat) {
+  if (!boards[cat]) boards[cat] = fetch(API + "?action=board&class=" + encodeURIComponent(cat))
+    .then(r => r.json()).then(d => d.board || []).catch(() => { delete boards[cat]; return null; });
+  return boards[cat];
 }
 
 // Home page: the first 3 places this month, for everyone; chips switch between the age groups
@@ -413,15 +422,19 @@ let top3Cat = "";
 async function showTop3() {
   const p = getPlayer();
   const cats = (await loadCats()) || [];
-  if (!cats.length || $("menu").style.display === "none") return;
+  if (!cats.length) return;
   if (!cats.includes(top3Cat)) top3Cat = (p && cats.includes(p.cls)) ? p.cls : cats[0];
-  let list = [];
-  try { list = (await (await fetch(API + "?action=board&class=" + encodeURIComponent(top3Cat))).json()).board || []; } catch (e) {}
+  cats.forEach(getBoard);                              // load all groups at once
+  drawTop3(cats, p, null);                             // draw the chips straight away
+  drawTop3(cats, p, await getBoard(top3Cat));
+}
+function drawTop3(cats, p, list) {
   if ($("menu").style.display === "none") return;
   const me = p && p.cls === top3Cat ? p.nick.toLowerCase() : null;
   const medals = ["🥇", "🥈", "🥉"];
   $("top3").innerHTML = "<div class='label'>Najlepší tento mesiac</div><div class='chips' id='top3tabs'></div>" +
-    (list.length
+    (list === null ? "<div class='note' style='padding:6px 0'>Načítavam…</div>"
+      : list.length
       ? "<div class='mini'><ol>" + list.slice(0, 3).map((r, i) =>
           "<li class='" + (String(r.nick).toLowerCase() === me ? "me" : "") + "'>" +
           "<span class='rank'>" + medals[i] + "</span><span class='nm'>" + esc(r.nick) + "</span><span>" + r.score + "</span></li>").join("") + "</ol></div>"
@@ -430,7 +443,7 @@ async function showTop3() {
     const t = document.createElement("button");
     t.className = "chip mini-chip" + (c === top3Cat ? " on" : "");
     t.textContent = c;
-    t.onclick = () => { top3Cat = c; showTop3(); };
+    t.onclick = async () => { top3Cat = c; drawTop3(cats, p, null); drawTop3(cats, p, await getBoard(c)); };
     $("top3tabs").appendChild(t);
   });
   $("top3").style.display = "flex";
@@ -495,7 +508,8 @@ async function showBoard() {
   });
   $("board").innerHTML = "<div class='empty'>Načítavam…</div>";
   try {
-    const list = (await (await fetch(API + "?action=board&class=" + encodeURIComponent(boardCat))).json()).board || [];
+    const list = await getBoard(boardCat);
+    if (list === null) throw new Error("load");
     const me = p && p.cls === boardCat ? p.nick.toLowerCase() : null;
     $("board").innerHTML = list.length
       ? "<ol>" + list.map((r, i) =>
