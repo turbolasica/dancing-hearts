@@ -193,7 +193,7 @@
       <div class="label">Súťaž</div>
       <p>🏆 Súťažíš so všetkými vo svojej vekovej skupine. Počíta sa tvoja najlepšia hra v mesiaci.</p>
       <p>Do súťaže sa počítajú iba prvé 3 hry za deň. Aj hra, ktorú ukončíš skôr, sa počíta. Ďalšie hry sú tréning.</p>
-      <p>👕 Najlepší v každej vekovej skupine vyhrá na konci mesiaca tričko.</p>
+      <p>🏆 Prví traja v každej vekovej skupine na konci mesiaca vyhrajú odmenu.</p>
       <p>Používaj iba prezývku, nie celé meno.</p>
     </div>
     <button class="linkbtn" id="rulesBack">← Späť</button>
@@ -291,7 +291,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124163004";
+const VERSION = "20261124165657";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
