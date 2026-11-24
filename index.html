@@ -84,10 +84,11 @@
   .card { background: #fff; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
           width: 100%; max-width: 320px; margin: 6px auto 0; box-shadow: 0 6px 20px rgba(161, 79, 104, .08); }
   .card .label { text-align: center; margin: 0; }
-  #nick { font: inherit; font-size: 17px; padding: 12px 14px; width: 100%; text-align: center;
+  #nick, #pin { font: inherit; font-size: 17px; padding: 12px 14px; width: 100%; text-align: center;
           border: 2px solid #ecd5d9; border-radius: 14px; background: #fff; color: #1f1316;
           -webkit-user-select: text; user-select: text; -webkit-appearance: none; appearance: none; }
-  #nick:focus { outline: none; border-color: #dc896f; }
+  #nick:focus, #pin:focus { outline: none; border-color: #dc896f; }
+  #pin { letter-spacing: .3em; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
   .chip { border: 2px solid #ecd5d9; background: #fff; border-radius: 999px; padding: 9px 16px; cursor: pointer;
           font: inherit; font-size: 15px; font-weight: 800; color: #3d2329; }
@@ -106,6 +107,7 @@
   #game { gap: 14px; }
   .play.small { width: 130px; height: 130px; font-size: 20px; margin-top: 22px; }
   .play.small .tri { font-size: 34px; }
+  .play.busy { opacity: .6; }
   .linkbtn { border: 0; background: none; font: inherit; font-size: 16px; font-weight: 800; color: #a14f68;
              cursor: pointer; padding: 10px; margin: 0 auto; }
   #loginScreen .card { max-width: none; margin: 0; padding: 20px; gap: 12px; }
@@ -150,6 +152,7 @@
 
   <div id="menu" style="display:flex; flex-direction:column; gap:12px">
     <div class="sub">Zbieraj body a vyhraj! 💖</div>
+    <div id="winCard" class="card" style="display:none; text-align:center; background:linear-gradient(135deg,#fff6e0,#ffe6ec)"></div>
     <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700"></div>
     <div id="styles"></div>
     <div id="top3" class="card" style="display:none; margin-top:22px"></div>
@@ -163,8 +166,11 @@
     <div id="login" class="card">
       <div class="label">Vyber si prezývku a vekovú kategóriu</div>
       <input id="nick" maxlength="20" placeholder="Tvoja prezývka" autocomplete="off">
+      <input id="pin" maxlength="4" placeholder="PIN – 4 číslice" inputmode="numeric" pattern="[0-9]*" type="password" autocomplete="off">
       <div id="cats" class="chips"></div>
-      <div class="note">Stačí prezývka – neuvádzaj celé meno.</div>
+      <div class="note">Stačí prezývka – neuvádzaj celé meno.<br>
+        <b>Zapamätaj si svoj PIN</b> – budeš ho potrebovať, ak vyhráš alebo budeš hrať na inom telefóne.</div>
+      <div id="left" class="note" style="font-weight:800; color:#a14f68"></div>
       <div id="pErr"></div>
     </div>
     <button class="play small" id="go"><span class="tri">▶</span><span>Začať</span></button>
@@ -192,9 +198,14 @@
     <div class="card rules">
       <div class="label">Súťaž</div>
       <p>🏆 Súťažíš so všetkými vo svojej vekovej skupine. Počíta sa tvoja najlepšia hra v mesiaci.</p>
-      <p>Do súťaže sa počítajú iba prvé 3 hry za deň. Aj hra, ktorú ukončíš skôr, sa počíta. Ďalšie hry sú tréning.</p>
-      <p>🏆 Prví traja v každej vekovej skupine na konci mesiaca vyhrajú odmenu.</p>
-      <p>Používaj iba prezývku, nie celé meno.</p>
+      <p>Denne môžeš hrať 5 hier. Do súťaže sa počítajú prvé 3, ďalšie 2 sú tréning. Aj hra, ktorú ukončíš skôr, sa počíta.</p>
+      <p>🏆 Prví traja v každej vekovej skupine na konci mesiaca vyhrajú odmenu. Kto vyhrá, môže znova vyhrať až o 2 mesiace – medzitým hrá o česť a odmena ide ďalšiemu v poradí.</p>
+    </div>
+    <div class="card rules">
+      <div class="label">Prezývka a PIN</div>
+      <p>Hráš s prezývkou a 4-miestnym PIN-om. Používaj iba prezývku, nie celé meno. Ľahký PIN ako 1234 alebo 0000 nejde.</p>
+      <p>Zapamätaj si PIN – s ním sa prihlásiš aj na inom telefóne a ak vyhráš, ukážeš výhru na recepcii.</p>
+      <p>Jeden hráč = jedna prezývka. Nevhodnú prezývku alebo podvádzanie (napríklad viac prezývok jedného hráča) môžeme skryť alebo vymazať.</p>
     </div>
     <button class="linkbtn" id="rulesBack">← Späť</button>
   </div>
@@ -227,7 +238,10 @@
     <div id="result" style="font-size:20px; font-weight:700"></div>
     <div id="levelMsg" style="font-size:20px"></div>
     <div id="countMsg"></div>
+    <div id="placeMsg" style="font-size:18px; font-weight:800; color:#a14f68"></div>
+    <button class="pill" id="endBoard" style="margin:0 auto">🏆 Rebríček</button>
     <button class="play small" id="again" style="margin:6px auto 0"><span class="tri">▶</span><span>Znova</span></button>
+    <div id="doneMsg" style="display:none; font-size:18px; font-weight:800">Na dnes je to všetko. Príď zajtra! 💖</div>
     <button class="linkbtn" id="back">← Späť</button>
   </div>
 </main>
@@ -291,7 +305,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124165657";
+const VERSION = "20261124173531";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -381,7 +395,28 @@ const API = "https://script.google.com/macros/s/AKfycbyJlyoBcDS41p040DZqEKvv_BkL
 const PKEY = "dh-player";
 const MONTHS = ["január", "február", "marec", "apríl", "máj", "jún", "júl", "august", "september", "október", "november", "december"];
 let CATS = null, chosenCat = "", boardCat = "";
-function getPlayer() { try { return JSON.parse(localStorage.getItem(PKEY)); } catch (e) { return null; } }
+function getPlayer() { try { const p = JSON.parse(localStorage.getItem(PKEY)); return p && p.pin ? p : null; } catch (e) { return null; } }
+// random code for this phone (never shown); the daily game limit counts per phone
+function phone() {
+  let id = null; try { id = localStorage.getItem("dh-phone"); } catch (e) {}
+  if (!id) { id = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => (b % 36).toString(36)).join(""); store("dh-phone", id); }
+  return id;
+}
+async function call(body) {                       // send something to the sheet's script
+  try { return await (await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(Object.assign({ phone: phone() }, body)) })).json(); }
+  catch (e) { return { ok: false, error: "net" }; }
+}
+// today's games on this phone, remembered between visits
+function todayKey() { const d = new Date(), z = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()); }
+function getToday() { const t = cacheGet("dh-today"); return t && t.day === todayKey() ? t : { day: todayKey(), played: 0, counted: 0 }; }
+function setToday(played, counted) { cacheSet("dh-today", { day: todayKey(), played, counted }); }
+const MAX_PER_DAY = 5, COUNTED_PER_DAY = 3;
+function leftText() {
+  const t = getToday();
+  if (t.played >= MAX_PER_DAY) return "Na dnes je to všetko. Príď zajtra! 💖";
+  const c = COUNTED_PER_DAY - t.counted;
+  return c > 0 ? "Dnes ti zostávajú " + c + " súťažné hry." : "Súťažné hry na dnes máš. Ešte " + (MAX_PER_DAY - t.played) + "× tréning.";
+}
 function setPlayer(p) { store(PKEY, JSON.stringify(p)); }
 function cacheGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
 function cacheSet(k, v) { store(k, JSON.stringify(v)); }
@@ -417,17 +452,41 @@ function showMenu() {
   const p = getPlayer();
   boards = {};                                         // fresh scores each time the home page opens
   showTop3();
+  showWin();
 }
 
 // Leaderboard lists, fetched once per visit to the home page and kept, so switching is instant
 let boards = {};
-function getBoard(cat) {
-  if (!boards[cat]) boards[cat] = fetch(API + "?action=board&class=" + encodeURIComponent(cat))
-    .then(r => r.json()).then(d => { const b = d.board || []; cacheSet("dh-board-" + cat, b); return b; })
-    .catch(() => { delete boards[cat]; return cacheGet("dh-board-" + cat); });
+function getBoard(cat) {          // → { board: top 10, total, me: { rank, score, total } }
+  const p = getPlayer();
+  if (!boards[cat]) boards[cat] = fetch(API + "?action=board&class=" + encodeURIComponent(cat) + (p ? "&nick=" + encodeURIComponent(p.nick) : ""))
+    .then(r => r.json()).then(d => { d.board = d.board || []; cacheSet("dh-board-" + cat, d); return d; })
+    .catch(() => { delete boards[cat]; return savedBoard(cat); });
   return boards[cat];
 }
-function savedBoard(cat) { return cacheGet("dh-board-" + cat); }   // last list this phone saw
+function savedBoard(cat) { const d = cacheGet("dh-board-" + cat); return Array.isArray(d) ? { board: d } : d; }   // last list this phone saw
+
+// Home page: last month's winners see a congratulations card (checked with nickname + PIN)
+async function showWin() {
+  const p = getPlayer();
+  const saved = cacheGet("dh-win");
+  drawWin(saved && p && saved.nick === p.nick ? saved : null);
+  if (!p) return;
+  const r = await call({ action: "me", nick: p.nick, pin: p.pin });
+  if (!r.ok) return;
+  setToday(r.played, r.counted);
+  const w = r.won ? Object.assign({ nick: r.nick }, r.won) : null;
+  cacheSet("dh-win", w);
+  drawWin(w);
+}
+function drawWin(w) {
+  if (!w || $("menu").style.display === "none") { $("winCard").style.display = "none"; return; }
+  const month = MONTHS[Number(String(w.month).slice(5, 7)) - 1];
+  $("winCard").innerHTML = "<div style='font-size:34px'>🏆</div><div style='font-size:20px;font-weight:900'>Gratulujeme, " + esc(w.nick) + "!</div>" +
+    "<div style='font-weight:800'>" + w.place + ". miesto · " + esc(w.class) + " · " + month + "</div>" +
+    "<div class='note' style='font-size:14px'>Ukáž túto obrazovku na recepcii a prevezmi si odmenu.</div>";
+  $("winCard").style.display = "flex";
+}
 
 // Home page: the first 3 places this month, for everyone; chips switch between the age groups
 let top3Cat = "";
@@ -438,9 +497,9 @@ async function showTop3() {
   if (!cats.includes(top3Cat)) top3Cat = (p && cats.includes(p.cls)) ? p.cls : cats[0];
   cats.forEach(getBoard);                              // refresh all groups at once, in the background
   const before = savedBoard(top3Cat);
-  drawTop3(cats, p, before);                           // show the remembered list straight away
+  drawTop3(cats, p, (before && before.board) || null);           // show the remembered list straight away
   const fresh = await getBoard(top3Cat);
-  if (JSON.stringify(fresh) !== JSON.stringify(before)) drawTop3(cats, p, fresh);   // redraw only if it changed
+  if (fresh && JSON.stringify(fresh.board) !== JSON.stringify(before && before.board)) drawTop3(cats, p, fresh.board);
 }
 function drawTop3(cats, p, list) {
   if ($("menu").style.display === "none") return;
@@ -457,7 +516,8 @@ function drawTop3(cats, p, list) {
     const t = document.createElement("button");
     t.className = "chip mini-chip" + (c === top3Cat ? " on" : "");
     t.textContent = c;
-    t.onclick = async () => { top3Cat = c; drawTop3(cats, p, savedBoard(c)); drawTop3(cats, p, await getBoard(c)); };
+    t.onclick = async () => { top3Cat = c; const sv = savedBoard(c); drawTop3(cats, p, (sv && sv.board) || null);
+      const f = await getBoard(c); if (f) drawTop3(cats, p, f.board); };
     $("top3tabs").appendChild(t);
   });
   $("top3").style.display = "flex";
@@ -469,7 +529,8 @@ async function showLogin() {
   document.querySelector("main").classList.remove("home");
   document.querySelector("main").classList.add("login");
   const p = getPlayer();
-  $("nick").value = p ? p.nick : ""; chosenCat = p ? p.cls : ""; $("pErr").textContent = "";
+  $("nick").value = p ? p.nick : ""; $("pin").value = p ? p.pin : ""; chosenCat = p ? p.cls : ""; $("pErr").textContent = "";
+  $("left").textContent = leftText();
   $("cats").innerHTML = "<span class='note'>Načítavam…</span>";
   const cats = await loadCats();
   if (!cats) { $("cats").innerHTML = "<span class='note'>Nepodarilo sa načítať. Skús znova.</span>"; return; }
@@ -485,23 +546,46 @@ async function showLogin() {
 }
 
 // Called by the play button: saves the login if it is showing. Returns false if something is missing.
-function saveLogin() {
-  const nick = $("nick").value.replace(/\s+/g, " ").trim();
-  if (nick.length < 2) { $("pErr").textContent = "Napíš svoju prezývku."; return false; }
-  if (!chosenCat) { $("pErr").textContent = "Vyber svoj vek."; return false; }
-  setPlayer({ nick, cls: chosenCat });
-  return true;
+// "Začať": log in (or register) with nickname + PIN, then start the game
+const LOGIN_ERRORS = {
+  nick: "Napíš prezývku (aspoň 2 znaky).", class: "Vyber svoju vekovú kategóriu.", pin: "PIN musí mať 4 číslice.",
+  easypin: "Tento PIN je príliš ľahký. Vyber si iný.", badpin: "Táto prezývka je už obsadená alebo PIN nesedí.",
+  locked: "Priveľa zlých pokusov. Skús to zajtra.", hidden: "Táto prezývka nie je povolená. Vyber si inú.",
+  net: "Nepodarilo sa spojiť. Skús znova.",
+};
+let loggingIn = false;
+async function startFromLogin() {
+  if (loggingIn) return;
+  const nick = $("nick").value.replace(/\s+/g, " ").trim(), pin = $("pin").value.trim();
+  if (nick.length < 2) { $("pErr").textContent = LOGIN_ERRORS.nick; return; }
+  if (!/^\d{4}$/.test(pin)) { $("pErr").textContent = LOGIN_ERRORS.pin; return; }
+  if (!chosenCat) { $("pErr").textContent = LOGIN_ERRORS.class; return; }
+  loggingIn = true; $("pErr").textContent = ""; $("go").classList.add("busy");
+  const r = await call({ action: "login", nick, pin, class: chosenCat });
+  loggingIn = false; $("go").classList.remove("busy");
+  if (!r.ok) {
+    $("pErr").textContent = LOGIN_ERRORS[r.error] || LOGIN_ERRORS.net;
+    if (r.error === "badpin" && r.left) $("pErr").textContent += " (zostáva " + r.left + " pokusov)";
+    return;
+  }
+  setPlayer({ nick: r.nick, cls: r.class, pin });
+  setToday(r.played, r.counted);
+  $("left").textContent = leftText();
+  if (r.played >= MAX_PER_DAY) { $("pErr").textContent = leftText(); return; }
+  await wordsReady;
+  if (WORDS.length) play();
 }
+
 
 // Save one game (finished or quit). Returns the script's answer, or null if it failed.
 async function sendScore() {
   const p = getPlayer();
   if (!p) return null;
-  try {
-    const r = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ nick: p.nick, class: p.cls, score, level: correct }) });
-    return await r.json();
-  } catch (e) { return null; }
+  const r = await call({ action: "save", nick: p.nick, pin: p.pin, score, words: correct });
+  if (r.ok) setToday(r.played, r.countedToday);
+  else if (r.error === "limit") setToday(r.played, r.counted);
+  boards = {};                                      // scores changed: fetch fresh lists next time
+  return r;
 }
 
 // Leaderboard screen: one tab per age group, top 10 of this month
@@ -522,14 +606,17 @@ async function showBoard() {
   });
   $("board").innerHTML = "<div class='empty'>Načítavam…</div>";
   try {
-    const list = await getBoard(boardCat);
-    if (list === null) throw new Error("load");
+    const data = await getBoard(boardCat);
+    if (!data) throw new Error("load");
+    const list = data.board;
     const me = p && p.cls === boardCat ? p.nick.toLowerCase() : null;
-    $("board").innerHTML = list.length
+    const mine = me && data.me ? "<div class='empty' style='font-weight:800;color:#a14f68'>Tvoje miesto: " +
+      data.me.rank + ". z " + data.me.total + " (" + data.me.score + " b.)</div>" : "";
+    $("board").innerHTML = (list.length
       ? "<ol>" + list.map((r, i) =>
           "<li class='" + (String(r.nick).toLowerCase() === me ? "me" : "") + "'>" +
           "<span class='rank'>" + (i + 1) + ".</span><span class='nm'>" + esc(r.nick) + "</span><span>" + r.score + "</span></li>").join("") + "</ol>"
-      : "<div class='empty'>Tento mesiac tu ešte nikto nehral.</div>";
+      : "<div class='empty'>Tento mesiac tu ešte nikto nehral.</div>") + mine;
   } catch (e) {
     $("board").innerHTML = "<div class='empty'>Rebríček sa nepodarilo načítať.</div>";
   }
@@ -704,18 +791,25 @@ function quit() {
 function finish() {
   hideAll(); stopMusic();
   $("end").style.display = "flex";
-  $("countMsg").textContent = "Ukladám…";
+  $("countMsg").textContent = "Ukladám…"; $("placeMsg").textContent = "";
+  $("again").style.display = "flex"; $("doneMsg").style.display = "none";
   sendScore().then(r => {
-    $("countMsg").textContent = !r || !r.ok ? "Body sa nepodarilo uložiť."
-      : r.counted ? "✓ Hra sa počíta do mesačnej súťaže."
-      : "Dnes už máš 3 súťažné hry. Táto sa nepočíta, ale trénovať môžeš ďalej!";
+    const p = getPlayer();
+    $("countMsg").textContent = r.ok
+      ? (r.counted ? "✓ Hra sa počíta do súťaže (" + r.countedToday + ". z " + COUNTED_PER_DAY + " dnes)."
+                   : "Tréning – dnešné súťažné hry už máš.")
+      : r.error === "limit" ? "Dnes už máš " + MAX_PER_DAY + " hier, táto sa neuložila."
+      : "Body sa nepodarilo uložiť.";
+    if (r.ok && r.me) $("placeMsg").textContent = "Tvoje miesto: " + r.me.rank + ". z " + r.me.total + " · " + p.cls;
+    if (getToday().played >= MAX_PER_DAY) { $("again").style.display = "none"; $("doneMsg").style.display = "block"; }
   });
   $("final").textContent = score;
   $("result").textContent = "Poskladané slová: " + correct + " z " + ROUNDS;
   $("levelMsg").textContent = hearts > 0 ? "🏆 Celá cesta zvládnutá!" : "💔 Došli srdiečka.";
 }
 
-$("again").onclick = play;
+$("again").onclick = () => { if (getToday().played < MAX_PER_DAY) play(); };
+$("endBoard").onclick = showBoard;
 $("back").onclick = showMenu;
 $("quit").onclick = quit;
 $("mute").onclick = toggleMute;
@@ -723,7 +817,7 @@ $("music").onclick = toggleMusic;
 $("boardBtn").onclick = showBoard;
 $("boardBack").onclick = showMenu;
 $("rulesBtn").onclick = showRules;
-$("go").onclick = () => { if (saveLogin()) wordsReady.then(() => { if (WORDS.length) play(); }); };
+$("go").onclick = startFromLogin;
 $("loginBack").onclick = showMenu;
 $("rulesBack").onclick = showMenu;
 const wordsReady = load();   // words load in the background

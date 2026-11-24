@@ -2,7 +2,7 @@
   "name": "Dancing Hearts",
   "short_name": "Dancing Hearts",
   "start_url": "./",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#fbf3f4",
   "theme_color": "#a14f68",
   "icons": [
