@@ -185,7 +185,7 @@
       <div class="label">Ako sa hrá</div>
       <p>Poskladaj z písmen názov tanečného kroku. Ťukaj na písmená v správnom poradí. Ak sa pomýliš, ťukni na písmeno hore a vráti sa späť.</p>
       <p>💡 Nápoveda ti povie, čo slovo znamená.</p>
-      <p>Hra má 10 slov a sú čoraz ťažšie: najprv 3 krátke (10 sekúnd), potom 4 stredné (15 sekúnd) a nakoniec 3 dlhé (20 sekúnd).</p>
+      <p>Hra má 10 slov a sú čoraz ťažšie: najprv 3 krátke (8 sekúnd), potom 4 stredné (12 sekúnd) a nakoniec 3 dlhé (15 sekúnd).</p>
     </div>
     <div class="card rules">
       <div class="label">Srdiečka</div>
@@ -194,12 +194,12 @@
     </div>
     <div class="card rules">
       <div class="label">Body</div>
-      <p>Za každé písmeno správneho slova dostaneš 10 bodov. Čím rýchlejšie odpovieš, tým viac – až dvojnásobok.</p>
+      <p>Za krátke slovo dostaneš 50 bodov, za stredné 70 a za dlhé 100. Čím rýchlejšie odpovieš, tým viac – až dvojnásobok.</p>
       <p>Ak slovo poskladáš až na druhý pokus, dostaneš polovicu bodov.</p>
     </div>
     <div class="card rules">
       <div class="label">Súťaž</div>
-      <p>🏆 Súťažíš so všetkými vo svojej vekovej skupine. Počíta sa tvoja najlepšia hra v mesiaci.</p>
+      <p>🏆 Súťažíš so všetkými vo svojej vekovej skupine. Počíta sa tvoja najlepšia hra v mesiaci. Pri rovnakom počte bodov je vyššie ten, kto ich dosiahol skôr.</p>
       <p>Denne môžeš hrať 5 hier. Do súťaže sa počítajú prvé 3, ďalšie 2 sú tréning. Aj hra, ktorú ukončíš skôr, sa počíta.</p>
       <p>🏆 Prví traja v každej vekovej skupine na konci mesiaca vyhrajú odmenu. Kto vyhrá, môže znova vyhrať až o 2 mesiace – medzitým hrá o česť a odmena ide ďalšiemu v poradí.</p>
     </div>
@@ -254,9 +254,9 @@ const SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRrIUPEITb7Hno72S
 let WORDS = [];
 // Difficulty comes only from word length: easy ≤5 letters, medium 6–7, hard 8+
 const GROUPS = [
-  { name: "easy",   fits: n => n <= 5,           count: 3, seconds: 10 },
-  { name: "medium", fits: n => n >= 6 && n <= 7, count: 4, seconds: 15 },
-  { name: "hard",   fits: n => n >= 8,           count: 3, seconds: 20 },
+  { name: "easy",   fits: n => n <= 5,           count: 3, seconds: 8,  points: 50 },
+  { name: "medium", fits: n => n >= 6 && n <= 7, count: 4, seconds: 12, points: 70 },
+  { name: "hard",   fits: n => n >= 8,           count: 3, seconds: 15, points: 100 },
 ];
 let SECONDS = 20;
 let ROUNDS = 5;
@@ -307,7 +307,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124174827";
+const VERSION = "20261124182306";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -642,7 +642,7 @@ function play() {
   POOL = [];
   GROUPS.forEach(g => {
     shuffle(WORDS.filter(w => g.fits(w.word.length))).slice(0, g.count)
-      .forEach(w => POOL.push({ ...w, seconds: g.seconds }));
+      .forEach(w => POOL.push({ ...w, seconds: g.seconds, points: g.points }));
   });
   ROUNDS = POOL.length;
   start();
@@ -752,8 +752,8 @@ function check() {
   const guess = picked.map(b => b.textContent).join("");
   if (guess === word) {
     clearInterval(clock);
-    // 10 points per letter, up to double for speed; half after a mistake
-    let points = Math.round(word.length * 10 * (1 + timeLeft()));
+    // fixed points per group (easy 50, medium 70, hard 100), up to double for speed; half after a mistake
+    let points = Math.round(item.points * (1 + timeLeft()));
     if (mistakes > 0) points = Math.round(points / 2);
     score += points;
     correct++;
