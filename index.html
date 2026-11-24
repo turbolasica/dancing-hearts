@@ -331,7 +331,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124202646";
+const VERSION = "20261124203452";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -954,6 +954,9 @@ function finish() {
       $("placeMsg").innerHTML = "<div style='font-size:15px;color:#6b5a5e'>Tvoje miesto v rebríčku</div>" +
         "<div style='font-size:40px;font-weight:900;color:#a14f68;line-height:1.1'>" + r.me.rank + ".</div>" +
         "<div style='font-size:14px;color:#6b5a5e'>kategória: " + esc(p.cls) + "</div>";
+      showEndTop(p);
+    } else if (r.ok) {
+      $("placeMsg").innerHTML = "<div style='font-size:15px;color:#6b5a5e'>Zatiaľ nie si v rebríčku – počítajú sa len súťažné hry (prvé 3 za deň).</div>";
       showEndTop(p);
     }
     if (getToday().played >= MAX_PER_DAY) { $("again").style.display = "none"; $("doneMsg").style.display = "block"; }
