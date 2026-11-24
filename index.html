@@ -206,11 +206,30 @@ async function load() {
   }
 }
 
+// ---- Always run the newest version ----
+// publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
+// from the background), it asks the website for the current version and, if it is newer,
+// reloads with a fresh address so the phone cannot use its saved old copy.
+const VERSION = "20261124135222";
+async function checkVersion() {
+  if (VERSION === "dev") return;                         // local copy on the Mac: skip
+  try {
+    const html = await (await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" })).text();
+    const live = (html.match(/const VERSION = "([^"]+)"/) || [])[1];
+    if (live && live !== VERSION && sessionStorage.getItem("dh-reloaded") !== live) {
+      sessionStorage.setItem("dh-reloaded", live);        // reload only once per new version
+      location.replace(location.pathname + "?v=" + live);
+    }
+  } catch (e) {}
+}
+checkVersion();
+
 // When the game comes back after 30+ minutes in the background, reload it,
 // so the phone always gets the newest version and the newest words.
 let hiddenAt = 0;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) { hiddenAt = Date.now(); stopMusic(); return; }   // phone hid the app: music off
+  checkVersion();
   if (hiddenAt && Date.now() - hiddenAt > 30 * 60 * 1000) location.reload();
   else if ($("game").style.display !== "none") startMusic();
 });
