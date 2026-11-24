@@ -101,6 +101,9 @@
   /* "who is playing" screen, shown after tapping Hrať */
   #loginScreen { display: none; flex-direction: column; gap: 14px; margin-top: 10vh; }
   main.login h1 { display: none; }
+  main.playing h1 { display: none; }
+  main.playing { min-height: 100vh; min-height: 100dvh; justify-content: center; padding-top: 32px; padding-bottom: 32px; }
+  #game { gap: 14px; }
   .play.small { width: 130px; height: 130px; font-size: 20px; margin-top: 22px; }
   .play.small .tri { font-size: 34px; }
   .linkbtn { border: 0; background: none; font: inherit; font-size: 16px; font-weight: 800; color: #a14f68;
@@ -203,7 +206,7 @@
     <button class="linkbtn" id="boardBack">← Späť</button>
   </div>
 
-  <div id="game" style="display:none; flex-direction:column; gap:16px">
+  <div id="game" style="display:none; flex-direction:column">
     <div class="top"><span id="round">1 / 10</span><span id="score">0 b.</span></div>
     <div id="hearts"></div>
     <div id="bar"><div id="fill"></div><div id="secs"></div></div>
@@ -211,11 +214,11 @@
     <div id="hint">Poskladaj slovo!</div>
     <div id="answer" class="row"></div>
     <div id="pool" class="row"></div>
-    <div style="display:flex; justify-content:center; gap:8px; margin-top:6px">
+    <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:6px">
       <button id="music" class="pill soundbtn"></button>
       <button id="mute" class="pill soundbtn"></button>
+      <button id="quit" class="roundbtn" aria-label="Koniec hry" style="margin:0; width:40px; height:40px; font-size:18px">✕</button>
     </div>
-    <button id="quit" class="roundbtn" aria-label="Koniec hry" style="margin:4px auto 0">✕</button>
   </div>
 
   <div id="end">
@@ -288,7 +291,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124161226";
+const VERSION = "20261124161830";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -393,7 +396,7 @@ function loadCats() {
   return CATS ? Promise.resolve(CATS) : catsFresh;
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
-function hideAll() { document.querySelector("main").classList.remove("login"); ["menu", "loginScreen", "rulesScreen", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
+function hideAll() { document.querySelector("main").classList.remove("login", "playing"); ["menu", "loginScreen", "rulesScreen", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
 function showRules() {
   hideAll(); $("rulesScreen").style.display = "flex";
   document.querySelector("main").classList.remove("home");
@@ -561,6 +564,7 @@ function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] 
 function start() {
   round = 0; score = 0; correct = 0; used = []; hearts = HEARTS;
   hideAll(); $("game").style.display = "flex";
+  document.querySelector("main").classList.add("playing");
   drawSoundButtons();
   setTimeout(startMusic, 400);
   document.querySelector("main").classList.remove("home");
