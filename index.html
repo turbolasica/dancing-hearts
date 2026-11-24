@@ -76,29 +76,48 @@
     font: inherit; font-size: 20px; font-weight: 700; padding: 18px;
     border: 0; border-radius: 16px; background: #a14f68; color: #fff; cursor: pointer;
   }
-  /* who is playing + leaderboard */
-  #who { text-align: center; font-size: 14px; color: #6b5a5e; margin-top: 18px; }
+  /* brand line above the title (home only) */
+  .brand { text-align: center; font-size: 13px; font-weight: 800; letter-spacing: .25em; text-transform: uppercase;
+           color: #bc8390; margin-bottom: -14px; }
+  main:not(.home) .brand { display: none; }
+  main.home .brand { margin-top: 5vh; }
+  main.home h1 { margin-top: 0; }
+  /* login card on the home page */
+  .card { background: #fff; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+          width: 100%; max-width: 320px; margin: 6px auto 0; box-shadow: 0 6px 20px rgba(161, 79, 104, .08); }
+  .card .label { text-align: center; margin: 0; }
+  #nick { font: inherit; font-size: 17px; padding: 12px 14px; width: 100%; text-align: center;
+          border: 2px solid #ecd5d9; border-radius: 14px; background: #fff; color: #1f1316;
+          -webkit-user-select: text; user-select: text; -webkit-appearance: none; appearance: none; }
+  #nick:focus { outline: none; border-color: #dc896f; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip { border: 2px solid #ecd5d9; background: #fff; border-radius: 999px; padding: 9px 16px; cursor: pointer;
+          font: inherit; font-size: 15px; font-weight: 800; color: #3d2329; }
+  .chip.on { background: #a14f68; border-color: #a14f68; color: #fff; }
+  .note { text-align: center; font-size: 12px; color: #6b5a5e; }
+  #pErr { text-align: center; font-size: 14px; font-weight: 700; color: #b9473f; }
+  #pErr:empty { display: none; }
+  #who { text-align: center; font-size: 14px; color: #6b5a5e; margin-top: 14px; }
   #who button { border: 0; background: none; font: inherit; color: #a14f68; font-weight: 800; text-decoration: underline; cursor: pointer; }
-  #board { background: #fff; border-radius: 20px; padding: 14px 18px; margin-top: 10px; box-shadow: 0 6px 20px rgba(161, 79, 104, .08); }
-  #board .label { text-align: center; margin-bottom: 6px; }
+  .pill { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer;
+          padding: 10px 22px; border-radius: 999px; margin: 4px auto 0; box-shadow: 0 4px 14px rgba(161, 79, 104, .15); }
+  /* leaderboard screen */
+  #boardScreen { display: none; flex-direction: column; gap: 14px; }
+  #boardScreen h2 { text-align: center; font-size: 22px; font-weight: 900; color: #3d2329; }
+  #board { background: #fff; border-radius: 20px; padding: 10px 18px; box-shadow: 0 6px 20px rgba(161, 79, 104, .08); }
   #board ol { list-style: none; }
-  #board li { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f3e3e6; font-size: 16px; color: #1f1316; }
+  #board li { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f3e3e6; font-size: 16px; color: #1f1316; }
   #board li:last-child { border-bottom: 0; }
   #board li.me { font-weight: 800; color: #a14f68; }
-  #board .rank { width: 24px; color: #bc8390; font-weight: 800; }
+  #board .rank { width: 28px; color: #bc8390; font-weight: 800; }
   #board .nm { flex: 1; }
-  #board .empty { text-align: center; font-size: 14px; color: #6b5a5e; padding: 6px 0; }
-  /* first-time screen: nickname + class */
-  #profile { display: none; flex-direction: column; gap: 14px; margin-top: 4vh; }
-  #profile h2 { text-align: center; font-size: 24px; font-weight: 900; color: #3d2329; }
-  #profile input, #profile select {
-    font: inherit; font-size: 18px; padding: 14px 16px; width: 100%;
-    border: 2px solid #ecd5d9; border-radius: 14px; background: #fff; color: #1f1316;
-    -webkit-user-select: text; user-select: text; -webkit-appearance: none; appearance: none;
-  }
-  #profile input:focus, #profile select:focus { outline: none; border-color: #dc896f; }
-  .note { text-align: center; font-size: 13px; color: #6b5a5e; }
-  #pErr { text-align: center; font-size: 15px; font-weight: 700; color: #b9473f; min-height: 20px; }
+  #board .empty { text-align: center; font-size: 14px; color: #6b5a5e; padding: 10px 0; }
+  /* hearts: big and visible, shake when one is lost */
+  #hearts { text-align: center; font-size: 34px; letter-spacing: 6px; line-height: 1; }
+  #hearts.hit { animation: hit .5s; }
+  @keyframes hit { 0%, 100% { transform: none; } 20% { transform: translateX(-8px) scale(1.15); }
+                   40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(4px); } }
+  .roundbtn.off { opacity: .4; }
   #countMsg { font-size: 15px; color: #6b5a5e; }
   #end { text-align: center; display: none; flex-direction: column; gap: 16px; padding-top: 40px; }
   #end .big { font-size: 64px; font-weight: 800; color: #a14f68; }
@@ -106,14 +125,22 @@
 </head>
 <body>
 <main class="home">
+  <div class="brand">Alegria</div>
   <h1>Dancing Hearts</h1>
 
   <div id="menu" style="display:flex; flex-direction:column; gap:12px">
     <div class="sub">Zbieraj body a vyhraj! 💖</div>
+    <div id="login" class="card" style="display:none">
+      <div class="label">Kto hrá?</div>
+      <input id="nick" maxlength="20" placeholder="Tvoja prezývka" autocomplete="off">
+      <div id="cats" class="chips"></div>
+      <div class="note">Stačí prezývka – neuvádzaj celé meno.</div>
+      <div id="pErr"></div>
+    </div>
     <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
     <div id="styles"></div>
     <div id="who"></div>
-    <div id="board" style="display:none"></div>
+    <button id="boardBtn" class="pill" style="display:none">🏆 Rebríček</button>
     <div id="about">
       Poskladaj z písmen názov tanečného kroku. Pomôže ti krátka nápoveda.
       Slová sú čoraz ťažšie a máš 3 srdiečka. Dlhšie slovo a rýchla odpoveď
@@ -121,24 +148,24 @@
     </div>
   </div>
 
-  <div id="profile">
-    <h2>Kto hrá?</h2>
-    <input id="nick" maxlength="20" placeholder="Prezývka, napr. Ema B." autocomplete="off">
-    <select id="cls"><option value="">Vyber svoju triedu…</option></select>
-    <div class="note">Stačí prezývka – neuvádzaj celé meno.</div>
-    <div id="pErr"></div>
-    <button class="main" id="saveProfile">Hotovo</button>
+  <div id="boardScreen">
+    <h2 id="boardTitle">🏆 Rebríček</h2>
+    <div id="tabs" class="chips"></div>
+    <div id="board"></div>
+    <button class="main" id="boardBack" style="background:#fff; color:#a14f68">Späť</button>
   </div>
 
   <div id="game" style="display:none; flex-direction:column; gap:16px">
-    <div class="top"><span id="round">1 / 5</span><span id="lvl"></span><span id="score">0 b.</span></div>
+    <div class="top"><span id="round">1 / 10</span><span id="score">0 b.</span></div>
+    <div id="hearts"></div>
     <div id="bar"><div id="fill"></div><div id="secs"></div></div>
     <div id="help"><div class="label">💡 Nápoveda</div><div id="desc"></div></div>
     <div id="hint">Poskladaj slovo!</div>
     <div id="answer" class="row"></div>
     <div id="pool" class="row"></div>
     <div style="display:flex; justify-content:center; gap:14px">
-      <button id="mute" class="roundbtn" aria-label="Zvuk">🔊</button>
+      <button id="music" class="roundbtn" aria-label="Hudba">🎵</button>
+      <button id="mute" class="roundbtn" aria-label="Všetky zvuky">🔊</button>
       <button id="quit" class="roundbtn" aria-label="Koniec hry">✕</button>
     </div>
   </div>
@@ -158,7 +185,8 @@
 // ---- Content: comes from the "Dancing Hearts" Google Sheet ----
 const SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRrIUPEITb7Hno72SM7LWPvB8VeFSxTyiYTAoShPNA5xXkDcJpMy3L3emwhZsKWO5MfMuvhsoZoqKpe/pub?gid=1366488319&single=true&output=csv";
 let WORDS = [];
-const SECONDS = 20;
+const TIME = { 1: 10, 2: 15, 3: 20 };   // seconds per word, by difficulty (sheet column "level")
+let SECONDS = 20;
 let ROUNDS = 5;
 
 // Read the sheet's CSV text into rows (handles "quoted, text")
@@ -209,7 +237,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124140949";
+const VERSION = "20261124151955";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -267,7 +295,7 @@ const MELODY = [76, 79, 81, 79, 76, 74, 72, 74, 76, 79, 81, 84, 81, 79, 76, 79,
 const BASS = [48, 45, 41, 43];                            // C, A, F, G – one per bar
 function startMusic() {
   stopMusic();
-  if (muted) return;
+  if (muted || musicOff || $("game").style.display === "none") return;
   const a = ac(), step = 0.3;                             // one eighth note = 0.3 s (100 bpm)
   let i = 0, next = a.currentTime + 0.1;
   music = setInterval(() => {
@@ -280,53 +308,80 @@ function startMusic() {
   }, 100);
 }
 function stopMusic() { clearInterval(music); music = null; }
-function toggleMute() {
-  muted = !muted;
-  try { localStorage.setItem("dh-muted", muted ? "1" : "0"); } catch (e) {}
+let musicOff = (() => { try { return localStorage.getItem("dh-music") === "0"; } catch (e) { return false; } })();
+function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function drawSoundButtons() {
+  $("music").classList.toggle("off", musicOff || muted);
   $("mute").textContent = muted ? "🔇" : "🔊";
-  if (muted) stopMusic(); else if ($("game").style.display !== "none") startMusic();
+  $("mute").classList.toggle("off", muted);
 }
+function toggleMusic() { musicOff = !musicOff; store("dh-music", musicOff ? "0" : "1"); drawSoundButtons(); musicOff ? stopMusic() : startMusic(); }
+function toggleMute()  { muted = !muted; store("dh-muted", muted ? "1" : "0"); drawSoundButtons(); muted ? stopMusic() : startMusic(); }
 
-// ---- Player (nickname + class, kept on this phone) and leaderboard ----
+// ---- Player (nickname + age group, kept on this phone) and leaderboard ----
 // The script in the Google Sheet saves scores and reads the leaderboard.
+// Age groups come from the sheet's "Triedy" tab (one per row).
 const API = "https://script.google.com/macros/s/AKfycbyJlyoBcDS41p040DZqEKvv_BkLdHdb6x12ihtDAuh6yX_kbwxD70mYcXdxbNDxRPrFIw/exec";
 const PKEY = "dh-player";
 const MONTHS = ["január", "február", "marec", "apríl", "máj", "jún", "júl", "august", "september", "október", "november", "december"];
-let CLASSES = null;
+let CATS = null, chosenCat = "", editing = false, boardCat = "";
 function getPlayer() { try { return JSON.parse(localStorage.getItem(PKEY)); } catch (e) { return null; } }
-function setPlayer(p) { try { localStorage.setItem(PKEY, JSON.stringify(p)); } catch (e) {} }
-
-function hideAll() {
-  ["menu", "profile", "game", "end"].forEach(id => $(id).style.display = "none");
+function setPlayer(p) { store(PKEY, JSON.stringify(p)); }
+async function loadCats() {
+  if (!CATS) try { CATS = (await (await fetch(API)).json()).classes || null; } catch (e) {}
+  return CATS;
 }
-
-async function showProfile() {
-  hideAll();
-  $("profile").style.display = "flex";
-  document.querySelector("main").classList.add("home");
-  const p = getPlayer() || {};
-  $("nick").value = p.nick || "";
-  $("pErr").textContent = "";
-  if (!CLASSES) {
-    $("pErr").textContent = "Načítavam triedy…";
-    try { CLASSES = (await (await fetch(API)).json()).classes || []; $("pErr").textContent = ""; }
-    catch (e) { $("pErr").textContent = "Triedy sa nepodarilo načítať. Skús znova."; return; }
-  }
-  $("cls").innerHTML = '<option value="">Vyber svoju triedu…</option>' +
-    CLASSES.map(c => "<option>" + esc(c) + "</option>").join("");
-  $("cls").value = p.cls || "";
-}
-
-function saveProfile() {
-  const nick = $("nick").value.replace(/\s+/g, " ").trim();
-  const cls = $("cls").value;
-  if (nick.length < 2) { $("pErr").textContent = "Napíš prezývku."; return; }
-  if (!cls) { $("pErr").textContent = "Vyber triedu."; return; }
-  setPlayer({ nick, cls });
-  showMenu();
-}
-
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+function hideAll() { ["menu", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
+
+// Home page: login card (first time, or "zmeniť") or "Hráš ako …", then the play button
+function showMenu() {
+  hideAll(); $("menu").style.display = "flex";
+  document.querySelector("main").classList.add("home");
+  $("menuHint").textContent = "";
+  $("styles").innerHTML = "";
+  const b = document.createElement("button");
+  b.className = "play";
+  b.innerHTML = "<span class='tri'>▶</span><span>Hrať</span>";
+  b.onclick = () => { if (saveLogin()) play(); };
+  $("styles").appendChild(b);
+  const p = getPlayer();
+  if (!p || editing) { showLogin(p); return; }
+  // saved age group no longer exists (e.g. the list changed) → ask again
+  loadCats().then(c => { if (c && !c.includes(p.cls) && !editing) { editing = true; showMenu(); } });
+  $("login").style.display = "none";
+  $("who").style.display = "block"; $("boardBtn").style.display = "block";
+  $("who").innerHTML = "Hráš ako <b>" + esc(p.nick) + "</b> · " + esc(p.cls) + " · <button id='change'>zmeniť</button>";
+  $("change").onclick = () => { editing = true; showMenu(); };
+}
+
+async function showLogin(p) {
+  $("who").style.display = "none"; $("boardBtn").style.display = "none";
+  $("login").style.display = "flex";
+  $("nick").value = p ? p.nick : ""; chosenCat = p ? p.cls : ""; $("pErr").textContent = "";
+  $("cats").innerHTML = "<span class='note'>Načítavam…</span>";
+  const cats = await loadCats();
+  if (!cats) { $("cats").innerHTML = "<span class='note'>Nepodarilo sa načítať. Skús znova.</span>"; return; }
+  $("cats").innerHTML = "";
+  cats.forEach(c => {
+    const chip = document.createElement("button");
+    chip.className = "chip" + (c === chosenCat ? " on" : "");
+    chip.textContent = c;
+    chip.onclick = () => { chosenCat = c; [...$("cats").children].forEach(x => x.classList.toggle("on", x === chip)); };
+    $("cats").appendChild(chip);
+  });
+}
+
+// Called by the play button: saves the login if it is showing. Returns false if something is missing.
+function saveLogin() {
+  if ($("login").style.display === "none") return true;
+  const nick = $("nick").value.replace(/\s+/g, " ").trim();
+  if (nick.length < 2) { $("pErr").textContent = "Napíš svoju prezývku."; return false; }
+  if (!chosenCat) { $("pErr").textContent = "Vyber svoj vek."; return false; }
+  setPlayer({ nick, cls: chosenCat });
+  editing = false;
+  return true;
+}
 
 // Save one game (finished or quit). Returns the script's answer, or null if it failed.
 async function sendScore() {
@@ -339,38 +394,34 @@ async function sendScore() {
   } catch (e) { return null; }
 }
 
-async function loadBoard() {
+// Leaderboard screen: one tab per age group, top 10 of this month
+async function showBoard() {
+  hideAll(); $("boardScreen").style.display = "flex";
+  document.querySelector("main").classList.remove("home");
   const p = getPlayer();
-  if (!p) return;
-  $("who").innerHTML = "Hráš ako <b>" + esc(p.nick) + "</b> · " + esc(p.cls) + " · <button id='change'>zmeniť</button>";
-  $("change").onclick = showProfile;
-  $("board").style.display = "block";
-  const title = "<div class='label'>Rebríček · " + MONTHS[new Date().getMonth()] + "</div>";
-  if (!$("board").innerHTML) $("board").innerHTML = title + "<div class='empty'>Načítavam…</div>";
+  $("boardTitle").textContent = "🏆 Rebríček · " + MONTHS[new Date().getMonth()];
+  const cats = (await loadCats()) || [];
+  if (!boardCat) boardCat = (p && cats.includes(p.cls)) ? p.cls : cats[0];
+  $("tabs").innerHTML = "";
+  cats.forEach(c => {
+    const t = document.createElement("button");
+    t.className = "chip" + (c === boardCat ? " on" : "");
+    t.textContent = c;
+    t.onclick = () => { boardCat = c; showBoard(); };
+    $("tabs").appendChild(t);
+  });
+  $("board").innerHTML = "<div class='empty'>Načítavam…</div>";
   try {
-    const list = (await (await fetch(API + "?action=board&class=" + encodeURIComponent(p.cls))).json()).board || [];
-    $("board").innerHTML = title + (list.length
+    const list = (await (await fetch(API + "?action=board&class=" + encodeURIComponent(boardCat))).json()).board || [];
+    const me = p && p.cls === boardCat ? p.nick.toLowerCase() : null;
+    $("board").innerHTML = list.length
       ? "<ol>" + list.map((r, i) =>
-          "<li class='" + (String(r.nick).toLowerCase() === p.nick.toLowerCase() ? "me" : "") + "'>" +
+          "<li class='" + (String(r.nick).toLowerCase() === me ? "me" : "") + "'>" +
           "<span class='rank'>" + (i + 1) + ".</span><span class='nm'>" + esc(r.nick) + "</span><span>" + r.score + "</span></li>").join("") + "</ol>"
-      : "<div class='empty'>Tento mesiac v tvojej triede ešte nikto nehral.</div>");
+      : "<div class='empty'>Tento mesiac tu ešte nikto nehral.</div>";
   } catch (e) {
-    $("board").innerHTML = title + "<div class='empty'>Rebríček sa nepodarilo načítať.</div>";
+    $("board").innerHTML = "<div class='empty'>Rebríček sa nepodarilo načítať.</div>";
   }
-}
-
-function showMenu() {
-  if (!getPlayer()) { showProfile(); return; }        // first time: nickname + class
-  hideAll(); $("menu").style.display = "flex";
-  loadBoard();
-  document.querySelector("main").classList.add("home");
-  $("menuHint").textContent = "";
-  $("styles").innerHTML = "";
-  const b = document.createElement("button");
-  b.className = "play";
-  b.innerHTML = "<span class='tri'>▶</span><span>Hrať</span>";
-  b.onclick = play;
-  $("styles").appendChild(b);
 }
 
 // ---- Hearts: every game climbs from easy to hard words; 3 hearts, at most 10 words ----
@@ -388,8 +439,11 @@ function play() {
   }
   start();
 }
-function drawHearts() { $("lvl").textContent = "❤️".repeat(hearts) + "🤍".repeat(HEARTS - hearts); }
-function loseHeart() { hearts--; drawHearts(); }
+function drawHearts() { $("hearts").textContent = "❤️".repeat(hearts) + "💔".repeat(HEARTS - hearts); }
+function loseHeart() {
+  hearts--; drawHearts();
+  $("hearts").classList.remove("hit"); void $("hearts").offsetWidth; $("hearts").classList.add("hit");
+}
 
 // ---- Game ----
 const $ = id => document.getElementById(id);
@@ -400,7 +454,7 @@ function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] 
 function start() {
   round = 0; score = 0; correct = 0; used = []; hearts = HEARTS;
   hideAll(); $("game").style.display = "flex";
-  $("mute").textContent = muted ? "🔇" : "🔊";
+  drawSoundButtons();
   setTimeout(startMusic, 400);
   document.querySelector("main").classList.remove("home");
   drawHearts();
@@ -414,6 +468,7 @@ function nextRound() {
   $("hint").textContent = "Poskladaj slovo!";
   $("answer").className = "row";
   item = POOL[round - 1];
+  SECONDS = TIME[item.level] || 20;
   word = item.word.toUpperCase();
   document.documentElement.style.setProperty("--n", Math.max(9, word.length));
   $("desc").textContent = item.desc;
@@ -532,7 +587,7 @@ function quit() {
   clearInterval(clock); busy = true; stopMusic();
   const played = round > 1 || score > 0;
   showMenu();
-  if (played) sendScore().then(loadBoard);
+  if (played) sendScore();
 }
 
 function finish() {
@@ -552,8 +607,10 @@ function finish() {
 $("again").onclick = play;
 $("back").onclick = showMenu;
 $("quit").onclick = quit;
-$("saveProfile").onclick = saveProfile;
 $("mute").onclick = toggleMute;
+$("music").onclick = toggleMusic;
+$("boardBtn").onclick = showBoard;
+$("boardBack").onclick = showMenu;
 load();
 </script>
 </body>
