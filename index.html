@@ -101,7 +101,7 @@
   /* "who is playing" screen, shown after tapping Hrať */
   #loginScreen { display: none; flex-direction: column; gap: 14px; margin-top: 10vh; }
   main.login h1 { display: none; }
-  main.playing h1 { display: none; }
+  main.playing h1 { font-size: 20px; margin: 0 0 4px; }
   main.playing { min-height: 100vh; min-height: 100dvh; justify-content: center; padding-top: 32px; padding-bottom: 32px; }
   #game { gap: 14px; }
   .play.small { width: 130px; height: 130px; font-size: 20px; margin-top: 22px; }
@@ -227,7 +227,7 @@
     <div id="result" style="font-size:20px; font-weight:700"></div>
     <div id="levelMsg" style="font-size:20px"></div>
     <div id="countMsg"></div>
-    <button class="main" id="again">Hrať znova</button>
+    <button class="play small" id="again" style="margin:6px auto 0"><span class="tri">▶</span><span>Znova</span></button>
     <button class="linkbtn" id="back">← Späť</button>
   </div>
 </main>
@@ -291,7 +291,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124161830";
+const VERSION = "20261124163004";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
