@@ -219,6 +219,7 @@
       <div class="label">Súťaž</div>
       <p>🏆 Súťažíš so všetkými vo svojej vekovej skupine. Počíta sa tvoja najlepšia hra v mesiaci. Pri rovnakom počte bodov je vyššie ten, kto ich dosiahol skôr.</p>
       <p>Denne môžeš hrať 5 hier. Do súťaže sa počítajú prvé 3, ďalšie 2 sú tréning. Aj hra, ktorú ukončíš skôr, sa počíta.</p>
+      <p>📸 O odmenu hráš, ak v danom mesiaci aspoň raz zdieľaš svoj výsledok cez tlačidlo „Zdieľať na Instagram“ na konci hry. Mladším deťom pomôže rodič.</p>
       <p>🏆 Prví traja v každej vekovej skupine na konci mesiaca vyhrajú odmenu. Kto vyhrá, môže znova vyhrať až o 2 mesiace – medzitým hrá o česť a odmena ide ďalšiemu v poradí.</p>
     </div>
     <div class="card rules">
@@ -260,6 +261,10 @@
     <div id="countMsg"></div>
     <div id="placeMsg"></div>
     <div id="endTop" class="card" style="display:none; margin:0 auto"></div>
+    <div id="shareBox" class="card" style="margin:0 auto; text-align:center">
+      <div id="shareMsg" style="font-size:15px; font-weight:800"></div>
+      <button class="pill" id="shareBtn" style="margin:2px auto 0; background:linear-gradient(135deg,#e6ab96,#a14f68); color:#fff">📸 Zdieľať na Instagram</button>
+    </div>
     <button class="pill" id="endBoard" style="margin:0 auto">🏆 Rebríček</button>
     <button class="play small" id="again" style="margin:6px auto 0"><span class="tri">▶</span><span>Znova</span></button>
     <div id="doneMsg" style="display:none; font-size:18px; font-weight:800">Na dnes je to všetko. Príď zajtra! 💖</div>
@@ -326,7 +331,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124201137";
+const VERSION = "20261124202646";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -503,6 +508,7 @@ async function showWin() {
   const r = await call({ action: "me", nick: p.nick, pin: p.pin });
   if (!r.ok) return;
   setToday(r.played, r.counted);
+  setShared(!!r.sharedThisMonth);
   const w = r.won ? Object.assign({ nick: r.nick }, r.won) : null;
   cacheSet("dh-win", w);
   drawWin(w);
@@ -512,7 +518,8 @@ function drawWin(w) {
   const month = MONTHS[Number(String(w.month).slice(5, 7)) - 1];
   $("winCard").innerHTML = "<div style='font-size:34px'>🏆</div><div style='font-size:20px;font-weight:900'>Gratulujeme, " + esc(w.nick) + "!</div>" +
     "<div style='font-weight:800'>" + w.place + ". miesto · " + esc(w.class) + " · " + month + "</div>" +
-    "<div class='note' style='font-size:14px'>Ukáž túto obrazovku na recepcii a prevezmi si odmenu.</div>";
+    "<div class='note' style='font-size:14px'>Ukáž túto obrazovku na recepcii a prevezmi si odmenu.</div>" +
+    "<button class='pill' onclick='lastResult={score:" + Number(w.score) + ",words:10,place:" + Number(w.place) + ",cls:\"" + esc(w.class) + "\"};sharePicture()' style='margin:6px auto 0'>📸 Zdieľať výhru</button>";
   $("winCard").style.display = "flex";
 }
 
@@ -606,6 +613,7 @@ async function startFromLogin() {
   }
   setPlayer({ nick: r.nick, cls: r.class, pin });
   setToday(r.played, r.counted);
+  setShared(!!r.sharedThisMonth);
   $("left").textContent = leftText();
   if (r.played >= MAX_PER_DAY) { $("pErr").textContent = leftText(); return; }
   await wordsReady;
@@ -684,6 +692,62 @@ function celebrate(points, bonus, clean) {
     sp.style.setProperty("--dy", Math.sin(a) * d + "px");
     $("game").appendChild(sp);
     setTimeout(() => sp.remove(), 1000);
+  }
+}
+
+// ---- Sharing: a ready-made story picture; using the share button = playing for the prize this month ----
+const IG = "@alegriatrnava";
+function monthNow() { return todayKey().slice(0, 7); }
+function sharedThisMonth() { return cacheGet("dh-shared") === monthNow(); }
+function setShared(yes) { cacheSet("dh-shared", yes ? monthNow() : ""); }
+function drawShareMsg() {
+  $("shareMsg").innerHTML = sharedThisMonth()
+    ? "✓ Tento mesiac už hráš o odmenu.<br><span style='font-weight:600;color:#6b5a5e'>Zdieľať môžeš znova, kedykoľvek chceš.</span>"
+    : "📸 Zdieľaj svoj výsledok na Instagram<br>a hráš o odmenu!";
+}
+let lastResult = null;                 // { score, words, place, cls } for the picture
+async function makePicture() {
+  await document.fonts.ready;
+  const c = document.createElement("canvas"); c.width = 1080; c.height = 1920;
+  const x = c.getContext("2d"), W = 1080, p = getPlayer() || {}, r = lastResult || {};
+  const bg = x.createLinearGradient(0, 0, W, 1920);
+  bg.addColorStop(0, "#fbe7e0"); bg.addColorStop(0.5, "#f6dde3"); bg.addColorStop(1, "#e9c6cf");
+  x.fillStyle = bg; x.fillRect(0, 0, W, 1920);
+  x.textAlign = "center";
+  const font = (w, s) => w + " " + s + "px Nunito, system-ui, sans-serif";
+  x.fillStyle = "#bc8390"; x.font = font(800, 40); x.letterSpacing = "12px"; x.fillText("ALEGRIA", W / 2, 230); x.letterSpacing = "0px";
+  const tg = x.createLinearGradient(160, 0, 920, 0); tg.addColorStop(0, "#dc896f"); tg.addColorStop(1, "#a14f68");
+  x.fillStyle = tg; x.font = font(900, 124); x.fillText("Dancing Hearts", W / 2, 380);
+  // white card
+  x.fillStyle = "rgba(255,255,255,.92)"; x.beginPath(); x.roundRect(110, 520, 860, 820, 60); x.fill();
+  x.fillStyle = "#3d2329"; x.font = font(800, 64); x.fillText(p.nick || "", W / 2, 650);
+  x.fillStyle = "#a14f68"; x.font = font(900, 250); x.fillText(String(r.score || 0), W / 2, 920);
+  x.fillStyle = "#6b5a5e"; x.font = font(700, 54); x.fillText("bodov", W / 2, 1000);
+  x.fillStyle = "#3d2329"; x.font = font(800, 58);
+  x.fillText(r.place ? "🏆 " + r.place + ". miesto" : "💖 " + (r.words || 0) + " z 10 slov", W / 2, 1150);
+  x.fillStyle = "#6b5a5e"; x.font = font(600, 44); x.fillText(r.place ? (r.cls || "") : "", W / 2, 1230);
+  // invitation + Instagram name, big
+  x.fillStyle = "#3d2329"; x.font = font(700, 52); x.fillText("Tancujem v štúdiu Alegria 🩰", W / 2, 1500);
+  x.fillStyle = "#a14f68"; x.font = font(900, 96); x.fillText(IG, W / 2, 1640);
+  x.fillStyle = "#6b5a5e"; x.font = font(600, 40); x.fillText("Trnava", W / 2, 1720);
+  return new Promise(res => c.toBlob(res, "image/png"));
+}
+async function sharePicture() {
+  $("shareBtn").classList.add("busy");
+  const blob = await makePicture();
+  $("shareBtn").classList.remove("busy");
+  const file = new File([blob], "dancing-hearts.png", { type: "image/png" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });      // finishes only when an app was chosen (not on cancel)
+      setShared(true); drawShareMsg();
+      const q = getPlayer();
+      if (q) call({ action: "shared", nick: q.nick, pin: q.pin }).then(x => { if (!x.ok) { setShared(false); drawShareMsg(); } });
+    } catch (e) { /* cancelled: nothing counts */ }
+  } else {
+    // computer or old phone: just show the picture to save; this does not count as shared
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "dancing-hearts.png"; a.click();
+    $("shareMsg").textContent = "Obrázok sa uložil. Zdieľanie do súťaže funguje na mobile.";
   }
 }
 
@@ -875,6 +939,8 @@ function finish() {
   hideAll(); stopMusic();
   $("end").style.display = "flex";
   $("countMsg").textContent = "Ukladám…"; $("placeMsg").textContent = ""; $("endTop").style.display = "none";
+  lastResult = { score, words: correct, place: null, cls: (getPlayer() || {}).cls };
+  drawShareMsg();
   $("again").style.display = "flex"; $("doneMsg").style.display = "none";
   sendScore().then(r => {
     const p = getPlayer();
@@ -884,6 +950,7 @@ function finish() {
       : r.error === "auth" ? "Body sa neuložili – PIN nesedí. Prihlás sa znova."
       : "Body sa nepodarilo uložiť.";
     if (r.ok && r.me) {
+      lastResult.place = r.me.rank;
       $("placeMsg").innerHTML = "<div style='font-size:15px;color:#6b5a5e'>Tvoje miesto v rebríčku</div>" +
         "<div style='font-size:40px;font-weight:900;color:#a14f68;line-height:1.1'>" + r.me.rank + ".</div>" +
         "<div style='font-size:14px;color:#6b5a5e'>kategória: " + esc(p.cls) + "</div>";
@@ -899,6 +966,7 @@ function finish() {
 
 $("again").onclick = () => { if (getToday().played < MAX_PER_DAY) play(); };
 $("endBoard").onclick = showBoard;
+$("shareBtn").onclick = sharePicture;
 $("back").onclick = showMenu;
 $("quit").onclick = quit;
 $("mute").onclick = toggleMute;
