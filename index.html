@@ -95,10 +95,11 @@
   .note { text-align: center; font-size: 12px; color: #6b5a5e; }
   #pErr { text-align: center; font-size: 14px; font-weight: 700; color: #b9473f; }
   #pErr:empty { display: none; }
-  #who { text-align: center; font-size: 14px; color: #6b5a5e; margin-top: 14px; }
-  #who button { border: 0; background: none; font: inherit; color: #a14f68; font-weight: 800; text-decoration: underline; cursor: pointer; }
   .pill { border: 0; background: #fff; color: #a14f68; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer;
           padding: 10px 22px; border-radius: 999px; margin: 4px auto 0; box-shadow: 0 4px 14px rgba(161, 79, 104, .15); }
+  /* "who is playing" screen, shown after tapping Hrať */
+  #loginScreen { display: none; flex-direction: column; gap: 14px; margin-top: 4vh; }
+  #loginScreen .card { max-width: none; margin: 0; padding: 20px; gap: 12px; }
   /* rules screen */
   #rulesScreen { display: none; flex-direction: column; gap: 12px; }
   #rulesScreen h2 { text-align: center; font-size: 22px; font-weight: 900; color: #3d2329; }
@@ -140,21 +141,25 @@
 
   <div id="menu" style="display:flex; flex-direction:column; gap:12px">
     <div class="sub">Zbieraj body a vyhraj! 💖</div>
-    <div id="login" class="card" style="display:none">
+    <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
+    <div id="styles"></div>
+    <div id="top3" class="card" style="display:none"></div>
+    <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap">
+      <button id="boardBtn" class="pill" style="margin:4px 0 0">🏆 Rebríček</button>
+      <button id="rulesBtn" class="pill" style="margin:4px 0 0">📖 Pravidlá</button>
+    </div>
+  </div>
+
+  <div id="loginScreen">
+    <div id="login" class="card">
       <div class="label">Kto hrá?</div>
       <input id="nick" maxlength="20" placeholder="Tvoja prezývka" autocomplete="off">
       <div id="cats" class="chips"></div>
       <div class="note">Stačí prezývka – neuvádzaj celé meno.</div>
       <div id="pErr"></div>
     </div>
-    <div id="menuHint" style="text-align:center; font-size:20px; font-weight:700">Načítavam…</div>
-    <div id="styles"></div>
-    <div id="who"></div>
-    <div id="top3" class="card" style="display:none"></div>
-    <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap">
-      <button id="boardBtn" class="pill" style="display:none; margin:4px 0 0">🏆 Celý rebríček</button>
-      <button id="rulesBtn" class="pill" style="margin:4px 0 0">📖 Pravidlá</button>
-    </div>
+    <button class="main" id="go">▶ Začať hru</button>
+    <button class="main" id="loginBack" style="background:#fff; color:#a14f68">Späť</button>
   </div>
 
   <div id="rulesScreen">
@@ -278,7 +283,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124154047";
+const VERSION = "20261124155420";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -367,7 +372,7 @@ function toggleMute()  { muted = !muted; store("dh-muted", muted ? "1" : "0"); d
 const API = "https://script.google.com/macros/s/AKfycbyJlyoBcDS41p040DZqEKvv_BkLdHdb6x12ihtDAuh6yX_kbwxD70mYcXdxbNDxRPrFIw/exec";
 const PKEY = "dh-player";
 const MONTHS = ["január", "február", "marec", "apríl", "máj", "jún", "júl", "august", "september", "október", "november", "december"];
-let CATS = null, chosenCat = "", editing = false, boardCat = "";
+let CATS = null, chosenCat = "", boardCat = "";
 function getPlayer() { try { return JSON.parse(localStorage.getItem(PKEY)); } catch (e) { return null; } }
 function setPlayer(p) { store(PKEY, JSON.stringify(p)); }
 async function loadCats() {
@@ -375,7 +380,7 @@ async function loadCats() {
   return CATS;
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
-function hideAll() { ["menu", "rulesScreen", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
+function hideAll() { ["menu", "loginScreen", "rulesScreen", "boardScreen", "game", "end"].forEach(id => $(id).style.display = "none"); }
 function showRules() {
   hideAll(); $("rulesScreen").style.display = "flex";
   document.querySelector("main").classList.remove("home");
@@ -391,17 +396,10 @@ function showMenu() {
   const b = document.createElement("button");
   b.className = "play";
   b.innerHTML = "<span class='tri'>▶</span><span>Hrať</span>";
-  b.onclick = () => { if (saveLogin()) play(); };
+  b.onclick = showLogin;
   $("styles").appendChild(b);
   const p = getPlayer();
-  if (!p || editing) { showLogin(p); return; }
-  // saved age group no longer exists (e.g. the list changed) → ask again
-  loadCats().then(c => { if (c && !c.includes(p.cls) && !editing) { editing = true; showMenu(); } });
-  $("login").style.display = "none";
-  $("who").style.display = "block"; $("boardBtn").style.display = "block";
-  $("who").innerHTML = "Hráš ako <b>" + esc(p.nick) + "</b> · " + esc(p.cls) + " · <button id='change'>zmeniť</button>";
-  $("change").onclick = () => { editing = true; showMenu(); };
-  showTop3(p);
+  if (p) showTop3(p); else $("top3").style.display = "none";
 }
 
 // Home page: the first 3 places of my age group this month
@@ -410,7 +408,7 @@ async function showTop3(p) {
     const list = (await (await fetch(API + "?action=board&class=" + encodeURIComponent(p.cls))).json()).board || [];
     if (!list.length || $("menu").style.display === "none") return;
     const medals = ["🥇", "🥈", "🥉"];
-    $("top3").innerHTML = "<div class='label'>Najlepší tento mesiac</div><div class='mini'><ol>" +
+    $("top3").innerHTML = "<div class='label'>Najlepší · " + esc(p.cls) + "</div><div class='mini'><ol>" +
       list.slice(0, 3).map((r, i) => "<li class='" + (String(r.nick).toLowerCase() === p.nick.toLowerCase() ? "me" : "") + "'>" +
         "<span class='rank'>" + medals[i] + "</span><span class='nm'>" + esc(r.nick) + "</span><span>" + r.score + "</span></li>").join("") +
       "</ol></div>";
@@ -418,13 +416,16 @@ async function showTop3(p) {
   } catch (e) {}
 }
 
-async function showLogin(p) {
-  $("who").style.display = "none"; $("boardBtn").style.display = "none"; $("top3").style.display = "none";
-  $("login").style.display = "flex";
+// "Kto hrá?" screen: nickname + age group (filled in from last time), then start the game
+async function showLogin() {
+  hideAll(); $("loginScreen").style.display = "flex";
+  document.querySelector("main").classList.remove("home");
+  const p = getPlayer();
   $("nick").value = p ? p.nick : ""; chosenCat = p ? p.cls : ""; $("pErr").textContent = "";
   $("cats").innerHTML = "<span class='note'>Načítavam…</span>";
   const cats = await loadCats();
   if (!cats) { $("cats").innerHTML = "<span class='note'>Nepodarilo sa načítať. Skús znova.</span>"; return; }
+  if (!cats.includes(chosenCat)) chosenCat = "";
   $("cats").innerHTML = "";
   cats.forEach(c => {
     const chip = document.createElement("button");
@@ -437,12 +438,10 @@ async function showLogin(p) {
 
 // Called by the play button: saves the login if it is showing. Returns false if something is missing.
 function saveLogin() {
-  if ($("login").style.display === "none") return true;
   const nick = $("nick").value.replace(/\s+/g, " ").trim();
   if (nick.length < 2) { $("pErr").textContent = "Napíš svoju prezývku."; return false; }
   if (!chosenCat) { $("pErr").textContent = "Vyber svoj vek."; return false; }
   setPlayer({ nick, cls: chosenCat });
-  editing = false;
   return true;
 }
 
@@ -674,6 +673,8 @@ $("music").onclick = toggleMusic;
 $("boardBtn").onclick = showBoard;
 $("boardBack").onclick = showMenu;
 $("rulesBtn").onclick = showRules;
+$("go").onclick = () => { if (saveLogin()) play(); };
+$("loginBack").onclick = showMenu;
 $("rulesBack").onclick = showMenu;
 load();
 </script>
