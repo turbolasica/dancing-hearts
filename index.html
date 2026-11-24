@@ -36,7 +36,6 @@
   }
   .play:active { transform: scale(.96); }
   .play .tri { font-size: 44px; line-height: 1; }
-  .lvlcap { text-align: center; font-size: 16px; font-weight: 600; color: #bc8390; margin-top: 10px; }
   #about { max-width: 270px; margin: 26px auto 0; text-align: center;
            font-size: 14px; line-height: 1.6; color: #6b5a5e; }
   /* home screen: title sits lower, closer to the middle */
@@ -117,8 +116,8 @@
     <div id="board" style="display:none"></div>
     <div id="about">
       Poskladaj z písmen názov tanečného kroku. Pomôže ti krátka nápoveda.
-      Dlhšie slovo a rýchla odpoveď znamenajú viac bodov.
-      Za 4 z 5 správnych odpovedí postúpiš na ďalšiu úroveň.
+      Slová sú čoraz ťažšie a máš 3 srdiečka. Dlhšie slovo a rýchla odpoveď
+      znamenajú viac bodov.
     </div>
   </div>
 
@@ -188,7 +187,7 @@ async function load() {
     // columns: word, description, style, level
     WORDS = parseCSV(text).slice(1)                       // skip the header row
       .map(r => ({ word: (r[0] || "").trim(), desc: (r[1] || "").trim(),
-                   // styles are switched off for now: all words play together, only levels count
+                   // style is not used for now; level = how hard the word is (1 easy … 3 hard)
                    // (to switch styles back on: use (r[2] || "").trim() here)
                    style: "▶ Hrať", level: parseInt(r[3]) || 1 }))
       .filter(w => !w.word.includes(" ")                  // one-word terms only, for now
@@ -210,7 +209,7 @@ async function load() {
 // publish.sh stamps VERSION when it puts the game online. When the game opens (or comes back
 // from the background), it asks the website for the current version and, if it is newer,
 // reloads with a fresh address so the phone cannot use its saved old copy.
-const VERSION = "20261124135222";
+const VERSION = "20261124140949";
 async function checkVersion() {
   if (VERSION === "dev") return;                         // local copy on the Mac: skip
   try {
@@ -335,7 +334,7 @@ async function sendScore() {
   if (!p) return null;
   try {
     const r = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ nick: p.nick, class: p.cls, score, level: levelsOf(style).indexOf(level) + 1 }) });
+      body: JSON.stringify({ nick: p.nick, class: p.cls, score, level: correct }) });
     return await r.json();
   } catch (e) { return null; }
 }
@@ -360,17 +359,6 @@ async function loadBoard() {
   }
 }
 
-// ---- Styles and levels (progress is kept only on this phone) ----
-const KEY = "dh-progress";
-function getProgress() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
-function saveProgress(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
-function levelsOf(s) { return [...new Set(WORDS.filter(w => w.style === s).map(w => w.level))].sort((a, b) => a - b); }
-function currentLevel(s) {           // highest level unlocked so far (level 1 at the start)
-  const ls = levelsOf(s), saved = getProgress()[s] || 0;
-  const open = ls.filter(l => l <= saved);
-  return open.length ? open[open.length - 1] : ls[0];
-}
-
 function showMenu() {
   if (!getPlayer()) { showProfile(); return; }        // first time: nickname + class
   hideAll(); $("menu").style.display = "flex";
@@ -378,42 +366,44 @@ function showMenu() {
   document.querySelector("main").classList.add("home");
   $("menuHint").textContent = "";
   $("styles").innerHTML = "";
-  [...new Set(WORDS.map(w => w.style))].forEach(s => {
-    const ls = levelsOf(s), lv = currentLevel(s);
-    const b = document.createElement("button");
-    b.className = "play";
-    b.innerHTML = "<span class='tri'>▶</span><span>Hrať</span>";
-    b.onclick = () => play(s);
-    const cap = document.createElement("div");
-    cap.className = "lvlcap";
-    cap.textContent = "úroveň " + (ls.indexOf(lv) + 1) + " z " + ls.length;
-    $("styles").appendChild(b);
-    $("styles").appendChild(cap);
-  });
+  const b = document.createElement("button");
+  b.className = "play";
+  b.innerHTML = "<span class='tri'>▶</span><span>Hrať</span>";
+  b.onclick = play;
+  $("styles").appendChild(b);
 }
 
-function play(s) {
+// ---- Hearts: every game climbs from easy to hard words; 3 hearts, at most 10 words ----
+const HEARTS = 3;
+let hearts;
+function play() {
   sfx.start();
-  style = s;
-  level = currentLevel(s);
-  POOL = WORDS.filter(w => w.style === style && w.level === level);
-  ROUNDS = Math.min(5, POOL.length);
+  // easiest first: by difficulty (the sheet's "level" column), then by length; ties mixed
+  const sorted = shuffle(WORDS).sort((a, b) => a.level - b.level || a.word.length - b.word.length);
+  ROUNDS = Math.min(10, sorted.length);
+  POOL = [];
+  for (let i = 0; i < ROUNDS; i++) {
+    const from = Math.floor(i * sorted.length / ROUNDS), to = Math.floor((i + 1) * sorted.length / ROUNDS);
+    POOL.push(sorted[from + Math.floor(Math.random() * (to - from))]);
+  }
   start();
 }
+function drawHearts() { $("lvl").textContent = "❤️".repeat(hearts) + "🤍".repeat(HEARTS - hearts); }
+function loseHeart() { hearts--; drawHearts(); }
 
 // ---- Game ----
 const $ = id => document.getElementById(id);
-let round, score, correct, used, item, word, picked, mistakes, busy, clock, t0, style, level, POOL;
+let round, score, correct, used, item, word, picked, mistakes, busy, clock, t0, POOL;
 
 function shuffle(a) { return a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(p => p[1]); }
 
 function start() {
-  round = 0; score = 0; correct = 0; used = [];
+  round = 0; score = 0; correct = 0; used = []; hearts = HEARTS;
   hideAll(); $("game").style.display = "flex";
   $("mute").textContent = muted ? "🔇" : "🔊";
   setTimeout(startMusic, 400);
   document.querySelector("main").classList.remove("home");
-  $("lvl").textContent = "Úroveň " + (levelsOf(style).indexOf(level) + 1);
+  drawHearts();
   nextRound();
 }
 
@@ -423,9 +413,7 @@ function nextRound() {
   $("score").textContent = score + " b.";
   $("hint").textContent = "Poskladaj slovo!";
   $("answer").className = "row";
-  const left = POOL.filter(w => !used.includes(w));
-  item = left[Math.floor(Math.random() * left.length)];
-  used.push(item);
+  item = POOL[round - 1];
   word = item.word.toUpperCase();
   document.documentElement.style.setProperty("--n", Math.max(9, word.length));
   $("desc").textContent = item.desc;
@@ -463,7 +451,7 @@ function tick() {
     clearInterval(clock);
     $("answer").className = "row bad";
     $("hint").textContent = "Čas vypršal! Je to: " + word;
-    sfx.lose();
+    sfx.lose(); loseHeart();
     setTimeout(next, 2000);
   }
 }
@@ -529,14 +517,14 @@ function check() {
     clearInterval(clock);
     $("answer").className = "row bad";
     $("hint").textContent = "Je to: " + word;
-    sfx.lose();
+    sfx.lose(); loseHeart();
     setTimeout(next, 2000);
   }
 }
 
 function next() {
   if ($("game").style.display === "none") return;   // the child quit this game
-  round < ROUNDS ? nextRound() : finish();
+  round < ROUNDS && hearts > 0 ? nextRound() : finish();
 }
 
 // ✕ button: stop the game and go back to the home page
@@ -557,26 +545,11 @@ function finish() {
       : "Dnes už máš 3 súťažné hry. Táto sa nepočíta, ale trénovať môžeš ďalej!";
   });
   $("final").textContent = score;
-  $("result").textContent = correct + " z " + ROUNDS + " správne";
-
-  // pass = all but one right (4 of 5) → unlock the next level of this style
-  const need = Math.max(1, ROUNDS - 1);
-  const ls = levelsOf(style), nextLevel = ls.find(l => l > level);
-  $("again").textContent = "Hrať znova";
-  if (correct < need) {
-    $("levelMsg").textContent = "Na ďalšiu úroveň treba aspoň " + need + " správne. Skús znova!";
-  } else if (nextLevel) {
-    const p = getProgress();
-    p[style] = Math.max(p[style] || 0, nextLevel);
-    saveProgress(p);
-    $("levelMsg").textContent = "🔓 Odomkla sa úroveň " + (ls.indexOf(nextLevel) + 1) + "!";
-    $("again").textContent = "Hrať úroveň " + (ls.indexOf(nextLevel) + 1);
-  } else {
-    $("levelMsg").textContent = "🏆 Všetky úrovne hotové!";
-  }
+  $("result").textContent = "Poskladané slová: " + correct + " z " + ROUNDS;
+  $("levelMsg").textContent = hearts > 0 ? "🏆 Celá cesta zvládnutá!" : "💔 Došli srdiečka.";
 }
 
-$("again").onclick = () => play(style);
+$("again").onclick = play;
 $("back").onclick = showMenu;
 $("quit").onclick = quit;
 $("saveProfile").onclick = saveProfile;
